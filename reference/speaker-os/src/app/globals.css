@@ -1,0 +1,322 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Brand tokens come from docs/brand/brand-tokens.css (imported in
+   src/app/layout.tsx). Style through them only: bg-surface, text-ink,
+   border-border, bg-accent, ... (see src/brand/tailwind.ts). Never
+   hard-code colors. This file holds base element styles and the few
+   rules Tailwind classes can't express (print, privacy, report hooks).
+   ============================================================ */
+
+/* ============================================================
+   BASE
+   ============================================================ */
+/* Phones: 16px form fields. Anything smaller makes iOS zoom the page on focus. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Keep text at the size we set when a phone rotates. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  color: var(--ink);
+  background: var(--bg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Brand focus ring on every interactive element: 2px solid accent, offset 2px. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Hide scrollbar but keep scroll functional */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Form controls. :where() keeps this default at zero specificity, so a
+   component's own classes (bg-surface on the feedback form) win. */
+:where(input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  background-color: var(--surface-sunken);
+  color: var(--ink);
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+}
+
+select option {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+
+/* ============================================================
+   PRIVACY MODE: blur sensitive contact info (names, emails,
+   phones, photos) when the privacy toggle is on.
+   ============================================================ */
+[data-privacy="on"] .privacy-blur {
+  filter: blur(6px);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ============================================================
+   CLIENT PAGES
+   Client and attendee pages put data-client-page + data-theme="light" on
+   their wrapper. <html> and <body> carry the viewer's theme (maybe dark);
+   the page area around the always-light page (overscroll, short pages)
+   uses paper, a fixed palette color equal to the light --bg.
+   ============================================================ */
+html:has([data-client-page]),
+body:has([data-client-page]) { background: var(--brand-paper); }
+
+/* ============================================================
+   PRINT
+   Reports and invoices print on white. Elements with data-noprint are
+   hidden when printing.
+   ============================================================ */
+@media print {
+  @page { margin: 14mm; }
+  /* Transparent = the white of the paper. <html> carries the viewer's theme,
+     which may be dark, so its tokens can't be used here. */
+  html, body {
+    color-scheme: light !important; /* or Chrome paints the page margins dark */
+    background: transparent !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  [data-report] {
+    background: var(--surface) !important;
+    color: var(--ink) !important;
+    min-height: 0 !important;
+  }
+  [data-report] .report-card {
+    border-color: var(--border) !important;
+    break-inside: avoid;
+  }
+  [data-noprint] { display: none !important; }
+  /* Client pages print on white paper; the band keeps its midnight. */
+  [data-client-page] { background: transparent !important; }
+}
+
+/* ============================================================
+   CLIENT REPORT (/r/[token])
+   The shared report blocks (src/features/reports/report-blocks.tsx) are
+   used by both the internal and the client report. On the client report
+   these hooks give them the client type scale and the print layout:
+   report-card, report-section-title, report-star-sm, report-track,
+   report-band, report-body, report-quotes.
+   ============================================================ */
+[data-brand-report] .report-track { background: var(--border); }
+/* Star-rating counts: room for "65 (92%)" at 14px without wrapping. */
+[data-brand-report] .report-track + span { width: auto; min-width: 4.75rem; white-space: nowrap; }
+/* Small stars beside rating rows: gold text color (the readable gold on light). */
+[data-brand-report] .report-star-sm { color: var(--highlight-text); }
+
+/* Section headings on the client report use the brand heading size (22px). */
+[data-brand-report] .report-section-title {
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+@media print {
+  [data-report][data-brand-report] {
+    background: var(--surface) !important;
+    color: var(--ink) !important;
+  }
+  /* Smaller and tighter in print so the report fits on two Letter pages. */
+  [data-report][data-brand-report] { zoom: 0.78; }
+  [data-brand-report] .report-band > div { padding-top: 20px; padding-bottom: 22px; }
+  [data-brand-report] .report-band > div > div:first-child { margin-bottom: 16px; }
+  [data-brand-report] .report-body { padding-top: 14px; padding-bottom: 0; }
+  [data-brand-report] .report-body > * + * { margin-top: 12px !important; }
+  [data-brand-report] .report-body .report-card { padding: 16px !important; }
+  [data-brand-report] .report-body .report-card .report-card { padding: 12px !important; }
+  [data-brand-report] .report-body .space-y-4 > * + * { margin-top: 12px !important; }
+  /* Quotes two to a row in print, so a full set of 8 doesn't push the
+     report onto extra pages. Heading and the closing line span both columns. */
+  [data-brand-report] .report-quotes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    align-items: start;
+  }
+  [data-brand-report] .report-quotes > * { margin-top: 0 !important; }
+  [data-brand-report] .report-quotes > h2,
+  [data-brand-report] .report-quotes > p { grid-column: 1 / -1; }
+  [data-brand-report] .report-quotes blockquote { font-size: 1rem; line-height: 1.45; }
+  /* Match the card column (760px minus 2 x 16px padding) so the band lines up. */
+  [data-brand-report] .report-band {
+    break-inside: avoid;
+    border-radius: var(--radius-md);
+    max-width: 728px;
+    margin: 0 auto;
+  }
+  [data-brand-report] h2 { break-after: avoid; }
+  [data-brand-report] .report-card,
+  [data-brand-report] figure,
+  [data-brand-report] li { break-inside: avoid; }
+}
+
+/* Photo cards (dashboard hero, Coming up): a navy fade up from the bottom so
+   text can sit on the photo. Approved exception to the solid-band rule; only
+   for event photo cards. --band is navy in both themes.
+   Never write `color-mix(... 0%, ...)` here: the production minifier turns it
+   into `0`, which is invalid and silently drops the whole gradient. */
+.photo-scrim {
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--band) 97%, transparent) 0%,
+    color-mix(in srgb, var(--band) 90%, transparent) 30%,
+    color-mix(in srgb, var(--band) 60%, transparent) 55%,
+    color-mix(in srgb, var(--band) 20%, transparent) 75%,
+    transparent 90%
+  );
+}
+
+/* Behind the floating bottom nav: content fades to the page color so the
+   bar reads as sitting above the page. Plain `transparent` at the top stop
+   (see the photo-scrim note: no color-mix with 0%). */
+.nav-fade {
+  transition: opacity 200ms ease;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--bg) 70%, transparent) 40%,
+    var(--bg) 75%
+  );
+}
+
+/* ── Bottom nav: collapses to a small circle while scrolling down (phones) ──
+   Every position and size lives here, keyed on [data-collapsed]. Never set
+   left/bottom/width inline on .app-nav or .app-nav-add: an inline style beats
+   both the collapsed rule and the wide-screen rule, and the animation and the
+   desktop layout silently stop working. State is set in app-shell.tsx. */
+:root {
+  --nav-bottom: calc(10px + env(safe-area-inset-bottom));
+  --nav-height: 60px;
+  --nav-width: min(28rem, calc(100vw - 16px)); /* max-w-md, 8px gutters */
+  --nav-mini: 52px;
+  --nav-add-w: 56px; /* HexAddButton size 56 */
+  --nav-add-h: 63px; /* its height (56 x 72/64) */
+  --nav-edge: 12px;
+  --nav-ease: 250ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.app-nav {
+  position: fixed;
+  z-index: 50;
+  bottom: var(--nav-bottom);
+  left: calc(50% - var(--nav-width) / 2); /* % of the viewport, without the scrollbar */
+  width: var(--nav-width);
+  height: var(--nav-height);
+  border-radius: 28px;
+  overflow: hidden; /* the pill clips the tab row as it shrinks */
+  transition: left var(--nav-ease), bottom var(--nav-ease), width var(--nav-ease), height var(--nav-ease), border-radius var(--nav-ease);
+}
+/* The row keeps the full expanded width, so tabs never squash. */
+.app-nav__row {
+  width: calc(var(--nav-width) - 2px); /* inside the 1px border */
+  height: calc(var(--nav-height) - 2px);
+  transition: opacity 200ms ease, visibility 0s;
+}
+.app-nav__mini {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 200ms ease, visibility 0s linear 200ms;
+}
+
+/* The gold hexagon is its own fixed element so it can sit above the bar and
+   slide to the right edge while the bar is collapsed. */
+.app-nav-add {
+  position: fixed;
+  z-index: 51;
+  width: var(--nav-add-w);
+  height: var(--nav-add-h);
+  /* Sits 16px above the bar's middle, so it rises out of the bar */
+  bottom: calc(var(--nav-bottom) + var(--nav-height) / 2 + 16px - var(--nav-add-h) / 2);
+  left: calc(50% - var(--nav-add-w) / 2);
+  transition: left var(--nav-ease), bottom var(--nav-ease);
+}
+
+@media (max-width: 767.98px) {
+  .app-nav[data-collapsed="true"] {
+    left: var(--nav-edge);
+    bottom: calc(var(--nav-bottom) + (var(--nav-height) - var(--nav-mini)) / 2);
+    width: var(--nav-mini);
+    height: var(--nav-mini);
+    border-radius: 9999px;
+  }
+  .app-nav[data-collapsed="true"] .app-nav__row {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 200ms ease, visibility 0s linear 200ms;
+  }
+  .app-nav[data-collapsed="true"] .app-nav__mini {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 200ms ease, visibility 0s;
+  }
+  /* The fade behind the bar goes with it, so the bottom of the page is clear */
+  .nav-fade[data-collapsed="true"] {
+    opacity: 0;
+  }
+  /* Centered on the mini circle's height, at the right edge */
+  .app-nav-add[data-collapsed="true"] {
+    left: calc(100% - var(--nav-edge) - var(--nav-add-w));
+    bottom: calc(var(--nav-bottom) + var(--nav-height) / 2 - var(--nav-add-h) / 2);
+  }
+}
+
+/* Event photo transitions (lib/view-transition.ts): the photo glides, the rest crossfades quickly. */
+::view-transition-group(*) { animation-duration: 380ms; animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 200ms; }
+
+/* A checked hexagon pops once (HexCheckbox adds .hex-pop only on the change). */
+@keyframes hex-pop {
+  0% { transform: scale(0.7); }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+.hex-pop { animation: hex-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1); transform-origin: center; }
+
+/* A list row folding closed after it's done (dashboard tasks). */
+.row-fold { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 280ms ease, opacity 220ms ease; }
+.row-fold > * { overflow: hidden; min-height: 0; }
+.row-fold[data-leaving="true"] { grid-template-rows: 0fr; opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .app-nav, .app-nav__row, .app-nav__mini, .app-nav-add, .nav-fade { transition: none; }
+  .hex-pop { animation: none; }
+  .row-fold { transition: none; }
+}

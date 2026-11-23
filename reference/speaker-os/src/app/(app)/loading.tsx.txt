@@ -1,0 +1,15 @@
+import { Skeleton, SkeletonShell } from '@/components/ui/skeleton'
+
+/** Default placeholder for any signed-in page without its own loading.tsx. */
+export default function AppLoading() {
+  return (
+    <SkeletonShell>
+      <div className="space-y-3">
+        <Skeleton className="h-7 w-40" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    </SkeletonShell>
+  )
+}

@@ -1,0 +1,84 @@
+'use client'
+
+import { useState } from 'react'
+import { MessageSquare } from 'lucide-react'
+import { SocialIcon } from '@/components/ui/social-icons'
+import { useViewer } from '@/components/providers/viewer-provider'
+import { cn, storageUrl } from '@/lib/utils'
+import { avatarRoute, initialsOf } from '@/lib/avatar'
+
+/**
+ * A person's avatar, like a mail app's: their saved photo, else their
+ * Gravatar or company logo (via /api/avatar), else initials. Initials show
+ * underneath until a picture loads, so rows never jump or flash.
+ * Blurred in privacy mode.
+ */
+export function PersonAvatar({
+  name,
+  email,
+  photoPath,
+  size = 36,
+  channel,
+  className,
+}: {
+  name: string | null | undefined
+  email?: string | null
+  photoPath?: string | null
+  size?: number
+  /** Outreach channel: LinkedIn and text threads get a small badge on the avatar. */
+  channel?: 'email' | 'text' | 'linkedin'
+  className?: string
+}) {
+  // The route checks the photo saved on their contact first (by email, else name).
+  const sources = [storageUrl(photoPath), avatarRoute(email, name)].filter((s): s is string => !!s)
+  const [index, setIndex] = useState(0)
+  const [loaded, setLoaded] = useState(false)
+  const src = sources[index]
+
+  const avatar = (
+    <span
+      className={cn('privacy-blur relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-tint', className)}
+      style={{ width: size, height: size }}
+    >
+      <span
+        aria-hidden="true"
+        className="font-semibold leading-none text-accent"
+        style={{ fontSize: Math.max(14, Math.round(size * 0.38)) }}
+      >
+        {initialsOf(name)}
+      </span>
+      {src && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={src}
+          src={src}
+          alt=""
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+          onError={() => { setLoaded(false); setIndex(i => i + 1) }}
+          className={cn('absolute inset-0 h-full w-full bg-surface object-cover transition-opacity', loaded ? 'opacity-100' : 'opacity-0')}
+        />
+      )}
+    </span>
+  )
+  if (!channel || channel === 'email') return avatar
+  return (
+    <span className="relative inline-flex shrink-0">
+      {avatar}
+      <span
+        aria-label={channel === 'linkedin' ? 'LinkedIn' : 'Text message'}
+        className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-ink"
+      >
+        {channel === 'linkedin'
+          ? <SocialIcon platform="linkedin" className="h-3 w-3" />
+          : <MessageSquare aria-hidden="true" className="h-3 w-3" strokeWidth={2} />}
+      </span>
+    </span>
+  )
+}
+
+/** The signed-in person's own avatar (profile photo, else initials), for sent messages. */
+export function MyAvatar({ size = 36, email, className }: { size?: number; email?: string | null; className?: string }) {
+  const viewer = useViewer()
+  return <PersonAvatar name={viewer?.name ?? 'You'} photoPath={viewer?.photoPath} email={email} size={size} className={className} />
+}

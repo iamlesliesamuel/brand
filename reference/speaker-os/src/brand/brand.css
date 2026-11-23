@@ -1,0 +1,24 @@
+/* ============================================================
+   App glue for the brand tokens.
+   The tokens themselves live in docs/brand/brand-tokens.css (imported
+   first in src/app/layout.tsx). This file only adds what that portable
+   file can't know about this app. Never put colors here.
+   ============================================================ */
+
+/* next/font renames the font families it loads (src/brand/fonts.ts), so
+   point the font tokens at its variables. Fallbacks match the token file. */
+:root {
+  --font-display: var(--font-dm-serif-display), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-dm-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Lets the browser draw native controls (date pickers, scrollbars,
+   select menus) to match the theme. */
+[data-theme="light"] { color-scheme: light; }
+[data-theme="dark"]  { color-scheme: dark; }
+
+/* <Logo background="auto"> renders both files; these show the one that
+   matches the nearest theme (custom properties inherit from the closest
+   [data-theme], so forced-theme wrappers work). */
+[data-theme="light"] { --logo-on-light: block; --logo-on-dark: none; }
+[data-theme="dark"]  { --logo-on-light: none;  --logo-on-dark: block; }

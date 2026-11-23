@@ -1,0 +1,35 @@
+import { cn } from '@/lib/utils'
+
+export function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'animate-pulse rounded-brand-md bg-surface-sunken',
+        className,
+      )}
+    />
+  )
+}
+
+/**
+ * Wrapper for loading.tsx content. The real header and nav stay on screen
+ * (they live in the (app) layout), so this only lays out the placeholder body.
+ */
+export function SkeletonShell({ children }: { children: React.ReactNode }) {
+  return <div aria-busy="true" aria-label="Loading">{children}</div>
+}
+
+export function SkeletonCard({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'rounded-brand-md border border-border bg-surface p-4 space-y-3',
+        className,
+      )}
+    >
+      <Skeleton className="h-4 w-1/3" />
+      <Skeleton className="h-3 w-2/3" />
+      <Skeleton className="h-3 w-1/2" />
+    </div>
+  )
+}

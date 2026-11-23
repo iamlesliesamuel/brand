@@ -1,0 +1,42 @@
+import { Star } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+// StatTile from docs/brand/BRAND.md. Label on top (sentence case, ink-muted),
+// the value in the stat style (40px bold, tabular figures, never colored),
+// and at most one supporting line. A star next to a rating is the only gold.
+
+export function StatTile({
+  label,
+  value,
+  sub,
+  star = false,
+  className,
+}: {
+  label: string
+  value: React.ReactNode
+  sub?: React.ReactNode
+  /** Show a gold star after the value (ratings only). */
+  star?: boolean
+  className?: string
+}) {
+  return (
+    <div className={cn('rounded-brand-md border border-border bg-surface-sunken p-4', className)}>
+      <p className="text-label text-ink-muted">{label}</p>
+      {/* The stat style (40px bold) scales down on narrow phones so long values like
+          $12,500 fit a half-width tile. Same weight and figures. */}
+      <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-stat tabular-nums text-ink max-sm:text-[clamp(26px,8.2vw,40px)] max-sm:leading-[1.1]">
+        {value}
+        {star && <Star aria-hidden="true" className="h-7 w-7 fill-highlight text-highlight" strokeWidth={1.75} />}
+      </p>
+      {sub && <p className="mt-1 text-caption text-ink-muted">{sub}</p>}
+    </div>
+  )
+}
+
+/**
+ * Four across on desktop, two by two on phones, 12px gaps. Give it an even
+ * number of tiles so no row has a hole. Sits inside a surface card.
+ */
+export function StatGrid({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn('grid grid-cols-2 gap-3 lg:grid-cols-4', className)}>{children}</div>
+}

@@ -1,0 +1,63 @@
+import { cn } from '@/lib/utils'
+
+// Cards from docs/brand/BRAND.md: surface on bg, 1px border, radius-md, no
+// shadow. Padding is space-4 on phones and space-6 from tablet up.
+
+export function Card({
+  children,
+  className,
+  id,
+}: {
+  children: React.ReactNode
+  className?: string
+  /** Jump target (e.g. the dashboard headline links to #tasks). */
+  id?: string
+}) {
+  return (
+    <div id={id} className={cn('rounded-brand-md border border-border bg-surface p-4 md:p-6', className)}>
+      {children}
+    </div>
+  )
+}
+
+export function CardHeader({
+  children,
+  className,
+}: {
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('mb-3 flex items-center justify-between gap-3', className)}>
+      {children}
+    </div>
+  )
+}
+
+/** Card title in the brand `title` style (DM Sans 18px semibold), sentence case. */
+export function CardTitle({
+  children,
+  className,
+  as: Tag = 'h3',
+}: {
+  children: React.ReactNode
+  className?: string
+  as?: 'h2' | 'h3' | 'h4'
+}) {
+  return <Tag className={cn('text-title text-ink', className)}>{children}</Tag>
+}
+
+/** A tile inside a card: surface-sunken, 1px border, radius-md. */
+export function Tile({
+  children,
+  className,
+}: {
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('rounded-brand-md border border-border bg-surface-sunken p-4', className)}>
+      {children}
+    </div>
+  )
+}

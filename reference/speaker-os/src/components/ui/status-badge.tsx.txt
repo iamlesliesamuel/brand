@@ -1,0 +1,40 @@
+import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
+import { cn, statusColor, statusLabel } from '@/lib/utils'
+import type { OpportunityStatus } from '@/lib/types'
+
+// Status badges from docs/brand/BRAND.md. Every status carries a word and,
+// for danger / warning / success, an icon. Color never carries the meaning alone.
+
+export type Tone = 'danger' | 'warning' | 'success'
+
+const TONE: Record<Tone, { cls: string; Icon: typeof AlertTriangle }> = {
+  danger: { cls: 'bg-danger-tint text-danger', Icon: XCircle },
+  warning: { cls: 'bg-warning-tint text-warning', Icon: AlertTriangle },
+  success: { cls: 'bg-success-tint text-success', Icon: CheckCircle2 },
+}
+
+const pill = 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-label'
+
+/** "Overdue", "Kit sync failed", "Paid": a tone, an icon and the word. */
+export function StatusBadge({
+  tone,
+  children,
+  className,
+}: {
+  tone: Tone
+  children: React.ReactNode
+  className?: string
+}) {
+  const { cls, Icon } = TONE[tone]
+  return (
+    <span className={cn(pill, cls, className)}>
+      <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+      {children}
+    </span>
+  )
+}
+
+/** An event's pipeline status: neutral or blue, always with its label. */
+export function EventStatusBadge({ status, className }: { status: OpportunityStatus; className?: string }) {
+  return <span className={cn(pill, statusColor(status), className)}>{statusLabel(status)}</span>
+}

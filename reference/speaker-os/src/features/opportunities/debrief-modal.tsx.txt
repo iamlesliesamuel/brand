@@ -1,0 +1,226 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { CheckCircle2, Copy, Star, X } from 'lucide-react'
+import { markDelivered } from './debrief-actions'
+import { Button, type ButtonVariant } from '@/components/ui/button'
+import { FormError } from '@/components/ui/field-error'
+
+const inputCls =
+  'mt-1 block w-full rounded-brand-md border border-control-border bg-surface-sunken px-3 py-2.5 text-sm text-ink placeholder:text-ink-muted focus:border-accent transition-colors'
+const labelCls = 'block text-label text-ink-muted'
+
+function StarRating({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex gap-1" role="group" aria-label="Rating">
+      {[1, 2, 3, 4, 5].map(n => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          aria-label={`${n} star${n === 1 ? '' : 's'}`}
+          aria-pressed={n <= value}
+          className="rounded-brand-sm p-1 transition-transform active:scale-90"
+        >
+          <Star
+            aria-hidden="true"
+            className={['h-8 w-8', n <= value ? 'fill-highlight text-highlight' : 'text-control-border'].join(' ')}
+            strokeWidth={1.75}
+          />
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export function MarkDeliveredButton({
+  opportunityId,
+  collectToken,
+  variant = 'internal',
+  className,
+}: {
+  opportunityId: string
+  collectToken: string | null
+  /** Button style for the trigger: internal when it's the page's main action. */
+  variant?: Extract<ButtonVariant, 'internal' | 'secondary'>
+  className?: string
+}) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [rating, setRating] = useState(0)
+  const [notes, setNotes] = useState('')
+  const [taskInput, setTaskInput] = useState('')
+  const [tasks, setTasks] = useState<string[]>([])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  function addTask() {
+    const t = taskInput.trim()
+    if (!t) return
+    setTasks(prev => [...prev, t])
+    setTaskInput('')
+  }
+
+  function removeTask(i: number) {
+    setTasks(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  async function handleSubmit() {
+    setSaving(true)
+    setError('')
+    const result = await markDelivered(opportunityId, {
+      rating: rating > 0 ? rating : undefined,
+      notes: notes.trim() || undefined,
+      followUpTasks: tasks,
+    })
+    if (result.success) {
+      setOpen(false)
+      router.refresh()
+    } else {
+      setError(result.error)
+      setSaving(false)
+    }
+  }
+
+  const testimonialUrl = collectToken
+    ? (typeof window !== 'undefined' ? `${window.location.origin}/t/${collectToken}` : `/t/${collectToken}`)
+    : null
+
+  return (
+    <>
+      <Button
+        variant={variant}
+        onClick={() => setOpen(true)}
+        className={['shrink-0 whitespace-nowrap', className].filter(Boolean).join(' ')}
+      >
+        <CheckCircle2 aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+        Mark delivered
+      </Button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-band/60 sm:items-center"
+          onClick={e => { if (e.target === e.currentTarget) setOpen(false) }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="debrief-title"
+            className="w-full max-w-lg rounded-t-brand-lg border border-border bg-surface p-6 space-y-5 sm:rounded-brand-lg max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between">
+              <h2 id="debrief-title" className="text-title text-ink">Post-event debrief</h2>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                className="rounded-brand-sm p-2 text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
+              >
+                <X aria-hidden="true" className="h-5 w-5" strokeWidth={1.75} />
+              </button>
+            </div>
+
+            {/* Rating */}
+            <div>
+              <label className={labelCls}>How did it go?</label>
+              <div className="mt-2">
+                <StarRating value={rating} onChange={setRating} />
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className={labelCls}>Notable moments and things to remember</label>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                className={[inputCls, 'resize-none'].join(' ')}
+                rows={3}
+                placeholder="Crowd energy was incredible, organizer asked about next year, AV had issues in first 10 minutes…"
+              />
+            </div>
+
+            {/* Follow-up tasks */}
+            <div>
+              <label className={labelCls}>Follow-up commitments</label>
+              <div className="mt-1 flex gap-2">
+                <input
+                  type="text"
+                  value={taskInput}
+                  onChange={e => setTaskInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTask() } }}
+                  className={inputCls}
+                  placeholder="Send slides to organizer, follow up with VIP attendee…"
+                />
+                <button
+                  type="button"
+                  onClick={addTask}
+                  className="mt-1 shrink-0 whitespace-nowrap rounded-brand-md border-[1.5px] border-ink px-3 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:bg-surface-sunken"
+                >
+                  Add
+                </button>
+              </div>
+              {tasks.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {tasks.map((t, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded-brand-md border border-border bg-surface-sunken py-1 pl-3 pr-1">
+                      <span className="flex-1 text-sm text-ink">{t}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeTask(i)}
+                        aria-label={`Remove ${t}`}
+                        className="shrink-0 rounded-brand-sm p-2 text-ink-muted transition-colors hover:bg-danger-tint hover:text-danger"
+                      >
+                        <X aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Testimonial link */}
+            {testimonialUrl && (
+              <div className="rounded-brand-md border border-border bg-surface-sunken p-3 space-y-1.5">
+                <p className="text-label font-semibold text-ink">Request a testimonial</p>
+                <p className="text-caption text-ink-muted">Share this link with the organizer or attendees.</p>
+                <div className="flex items-center gap-2">
+                  <p className="flex-1 truncate font-mono text-caption text-ink-muted">{testimonialUrl}</p>
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(testimonialUrl)}
+                    className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-brand-sm px-2 py-1 text-label font-semibold text-accent hover:bg-accent-tint"
+                  >
+                    <Copy aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+                    Copy
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {error && <FormError>{error}</FormError>}
+
+            <div className="flex items-center gap-3 pt-1">
+              <Button
+                variant="internal"
+                onClick={handleSubmit}
+                disabled={saving}
+                className="flex-1 whitespace-nowrap"
+              >
+                {saving ? 'Saving…' : 'Mark delivered'}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setOpen(false)}
+                className="whitespace-nowrap"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}

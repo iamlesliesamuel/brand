@@ -1,0 +1,84 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+
+/**
+ * Red count badge on the Outreach nav item. Refetches on navigation, window
+ * focus, a 60s interval, and an `outreach:refresh` event (dispatched when a
+ * thread is marked read). On mount (once per app session, since the nav lives
+ * in the (app) layout) it also kicks off a throttled Gmail sync so replies that
+ * arrived while the app was closed show up.
+ *
+ * Both use plain fetch() to /api routes, never server actions: a pending
+ * server action holds up the next navigation until it finishes.
+ */
+export function OutreachNavBadge() {
+  const pathname = usePathname()
+  const router = useRouter()
+  const [count, setCount] = useState(0)
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/outreach/unread', { cache: 'no-store' })
+      if (!res.ok) return
+      const data = (await res.json()) as { count: number; waiting?: number }
+      setCount(data.count ?? 0)
+      // App icon badge (installed app): conversations waiting on your reply.
+      const nav = navigator as Navigator & { setAppBadge?: (n: number) => Promise<void>; clearAppBadge?: () => Promise<void> }
+      const waiting = data.waiting ?? 0
+      if (waiting > 0) nav.setAppBadge?.(waiting).catch(() => {})
+      else nav.clearAppBadge?.().catch(() => {})
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  useEffect(() => {
+    refresh()
+  }, [pathname, refresh])
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    window.addEventListener('focus', refresh)
+    window.addEventListener('outreach:refresh', refresh)
+    document.addEventListener('visibilitychange', onVisible)
+    const id = setInterval(refresh, 60_000)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('outreach:refresh', refresh)
+      document.removeEventListener('visibilitychange', onVisible)
+      clearInterval(id)
+    }
+  }, [refresh])
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/outreach/autosync', { method: 'POST' })
+      .then(r => (r.ok ? (r.json() as Promise<{ ran: boolean }>) : { ran: false }))
+      .then(res => {
+        if (cancelled) return
+        if (res?.ran) {
+          refresh()
+          router.refresh()
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+    // Run once per mount; refresh/router identities are stable enough here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  if (count <= 0) return null
+
+  return (
+    <span className="absolute -right-1.5 -top-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-danger px-1.5 text-[14px] font-bold leading-none tabular-nums text-bg">
+      {count > 9 ? '9+' : count}
+      <span className="sr-only"> unread</span>
+    </span>
+  )
+}

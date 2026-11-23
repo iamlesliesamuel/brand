@@ -1,0 +1,64 @@
+import { Logo } from './logo'
+import { cn } from '@/lib/utils'
+
+// ReportHeader from docs/brand/BRAND.md: the full-width band that opens every
+// page a client sees (feedback reports, proposals, event pages, one-sheets).
+//
+// Top row: the horizontal logo for dark backgrounds on the left, an optional
+// on-band secondary button on the right (never a gold button; the page's one
+// gold action belongs at the end, after the proof). Then a short label, the
+// headline in display-lg (display-md on phones) and a metadata line.
+// The band stays in print and PDF.
+
+export function ReportHeader({
+  label,
+  headline,
+  meta,
+  action,
+  compact = false,
+  maxWidthClass = 'max-w-[760px]',
+  className,
+}: {
+  /** Short label, such as "Attendee feedback report". Sentence case. */
+  label: string
+  /** Usually the event or document name, as the client promoted it. */
+  headline: string
+  /** Date, host, session type and so on. */
+  meta?: React.ReactNode
+  /** One on-band secondary button, such as "Save as PDF". */
+  action?: React.ReactNode
+  /**
+   * Shorter band on phones for pages people fill in there (the feedback form,
+   * Book Me), so the form starts above the fold. Full band from sm up.
+   */
+  compact?: boolean
+  /** Width of the band's content column, to line up with the page below. Default 760px (reports). */
+  maxWidthClass?: string
+  className?: string
+}) {
+  return (
+    <header className={cn('bg-band text-brand-paper', className)}>
+      {/* compact only shortens the band on phones; from sm up it's the full band. */}
+      <div className={cn('mx-auto px-4 sm:px-6', maxWidthClass, compact ? 'py-5 sm:py-10' : 'py-8 sm:py-12')}>
+        <div className={cn('flex items-center justify-between gap-4', compact ? 'mb-4 sm:mb-8' : 'mb-8')}>
+          <Logo
+            lockup="horizontal"
+            background="dark"
+            height={compact ? 32 : 44}
+            className={compact ? 'h-8 w-auto sm:h-11' : 'h-10 w-auto sm:h-11'}
+          />
+          {action && <div data-noprint className="shrink-0">{action}</div>}
+        </div>
+        <p className="text-label text-on-band-muted">{label}</p>
+        <h1
+          className={cn(
+            'mt-1 font-display text-display-md text-brand-paper sm:mt-2 sm:text-display-lg',
+          )}
+        >
+          {headline}
+        </h1>
+        {meta && <div className="mt-3 text-body-sm text-on-band-muted">{meta}</div>}
+      </div>
+    </header>
+  )
+}

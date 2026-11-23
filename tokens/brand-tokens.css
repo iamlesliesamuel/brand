@@ -1,0 +1,97 @@
+/* Leslie Samuel brand tokens. Source of truth: github.com/iamlesliesamuel/brand (tokens/brand-tokens.css).
+   Copy this file into an app unchanged. Style through these variables only; never paste hex values into components.
+   Change a value here first, then copy it into each app (see prompts/SYNC-AN-APP.md). */
+/* Fonts: load DM Serif Display (400) and DM Sans (400, 500, 600, 700) from Google Fonts, e.g. with next/font/google. */
+
+:root, [data-theme="light"] {
+  --brand-midnight: #0A1628;
+  --brand-deep: #13223D;
+  --brand-blue: #1E4E8C;
+  --brand-gold: #F5B82E;
+  --brand-gold-deep: #8A6100;
+  --brand-paper: #F7F4EE;
+  --bg: #F7F4EE;
+  --surface: #FFFFFF;
+  --surface-sunken: #F1EEE7;
+  --surface-raised: #FFFFFF;
+  --ink: #0A1628;
+  --ink-muted: #5B6476;
+  --border: #E4DFD4;
+  --control-border: #857F70;
+  --accent: #1E4E8C;
+  --accent-tint: #E6EDF6;
+  --highlight: #F5B82E;
+  --highlight-text: #8A6100;
+  --on-highlight: #0A1628;
+  --band: #0A1628;
+  --on-band-muted: #C9D2E3;
+  --danger: #B42318;
+  --danger-tint: #FBEAE7;
+  --warning: #A3450B;
+  --warning-tint: #FCEEE2;
+  --success: #1A6E44;
+  --success-tint: #E4F2E9;
+}
+
+[data-theme="dark"], .dark {
+  --brand-midnight: #0A1628;
+  --brand-deep: #13223D;
+  --brand-blue: #1E4E8C;
+  --brand-gold: #F5B82E;
+  --brand-gold-deep: #8A6100;
+  --brand-paper: #F7F4EE;
+  --bg: #0A1628;
+  --surface: #13223D;
+  --surface-sunken: #0F1C33;
+  --surface-raised: #22355A;
+  --ink: #F7F4EE;
+  --ink-muted: #9AA6BD;
+  --border: #24324D;
+  --control-border: #6B7B99;
+  --accent: #7FA6DE;
+  --accent-tint: #1A2C4A;
+  --highlight: #F5B82E;
+  --highlight-text: #F5B82E;
+  --on-highlight: #0A1628;
+  --band: #060E1C;
+  --on-band-muted: #C9D2E3;
+  --danger: #FF8F85;
+  --danger-tint: #3A1D26;
+  --warning: #F28C4E;
+  --warning-tint: #3A2618;
+  --success: #62CF95;
+  --success-tint: #123327;
+}
+
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-full: 999px;
+
+  /* Motion. See BRAND.md, "Motion". Turn every transition off under prefers-reduced-motion. */
+  --duration-fast: 150ms;     /* hover and selected colors, presses */
+  --duration-base: 200ms;     /* backdrops, menus closing, plus to X, theme switch */
+  --duration-nav: 250ms;      /* bottom bar collapse and expand */
+  --duration-sheet: 300ms;    /* sheets sliding, menus opening */
+  --duration-pop: 320ms;      /* hexagon checkbox pop */
+  --duration-photo: 380ms;    /* photo growing into a cover */
+  --duration-count: 700ms;    /* numbers counting up */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-nav: cubic-bezier(0.2, 0, 0, 1);
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-photo: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --font-display: "DM Serif Display", Georgia, "Times New Roman", serif;
+  --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}

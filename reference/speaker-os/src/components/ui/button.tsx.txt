@@ -1,0 +1,51 @@
+import Link from 'next/link'
+import { cn } from '@/lib/utils'
+
+// Buttons from docs/brand/BRAND.md.
+//
+// primary    Gold. The one main action on a page clients or attendees see.
+//            Only one per screen. Never inside the band, never destructive.
+// internal   Blue (accent fill, bg text). The main form action inside the app:
+//            Save, Create, Send. The gold Add hexagon owns gold on internal screens.
+// secondary  Transparent with an ink outline. Every other action.
+// on-band    Transparent with a paper outline. Only inside the band header.
+export type ButtonVariant = 'primary' | 'internal' | 'secondary' | 'on-band'
+
+const base =
+  'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-brand-md px-5 py-2.5 ' +
+  'text-[15px] font-semibold leading-5 transition-colors ' +
+  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ' +
+  'disabled:cursor-not-allowed disabled:opacity-50'
+
+const variants: Record<ButtonVariant, string> = {
+  primary: 'bg-highlight text-on-highlight hover:brightness-95 focus-visible:outline-accent',
+  internal: 'bg-accent text-bg hover:brightness-110 focus-visible:outline-accent',
+  secondary: 'border-[1.5px] border-ink text-ink hover:bg-surface-sunken focus-visible:outline-accent',
+  'on-band': 'border-[1.5px] border-brand-paper text-brand-paper hover:bg-brand-paper/10 focus-visible:outline-brand-paper',
+}
+
+/** Class string for elements that can't use <Button> (a form's submit, a third-party link). */
+export function buttonClasses(variant: ButtonVariant = 'secondary', className?: string) {
+  return cn(base, variants[variant], className)
+}
+
+type CommonProps = { variant?: ButtonVariant; className?: string; children: React.ReactNode }
+
+export function Button({
+  variant = 'secondary',
+  className,
+  type = 'button',
+  ...props
+}: CommonProps & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return <button type={type} className={buttonClasses(variant, className)} {...props} />
+}
+
+/** A link styled as a button. Use for navigation, <Button> for actions. */
+export function ButtonLink({
+  variant = 'secondary',
+  className,
+  href,
+  ...props
+}: CommonProps & { href: string } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'>) {
+  return <Link href={href} className={buttonClasses(variant, className)} {...props} />
+}

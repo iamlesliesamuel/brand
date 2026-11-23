@@ -1,0 +1,793 @@
+'use client'
+
+import { useEffect, useState, useTransition } from 'react'
+import { saveFeedbackStep } from '@/features/opportunities/testimonial-actions'
+import type { FeedbackFormData, LeadTiming, PublicOpportunityData } from '@/lib/types'
+import { DEFAULT_STEP1_HEADING, DEFAULT_STEP1_SUBTEXT, DEFAULT_THANKS_MESSAGE, consentModeOf, consentText } from '@/features/opportunities/feedback-copy'
+import { LEARN_URL, STARTER_KIT_LABEL } from '@/features/learn/resources'
+import { AlertCircle, ArrowLeft, ArrowRight, Star } from 'lucide-react'
+import { Button, buttonClasses } from '@/components/ui/button'
+import { ClientPage } from '@/components/ui/client-page'
+import { HexCheckbox, HexProgress } from '@/components/ui/hexagon'
+import { cn } from '@/lib/utils'
+import { FieldError } from '@/components/ui/field-error'
+
+type Step = 1 | 2 | 3 | 4
+
+const EMPTY_FORM: FeedbackFormData = {
+  first_name: '',
+  email: '',
+  rating: 0,
+  missing_feedback: '',
+  rating_practical: 0,
+  rating_actionable: 0,
+  rating_relevant: 0,
+  rating_engaging: 0,
+  testimonial_text: '',
+  share_permission: false,
+  submitter_title: '',
+  submitter_company: '',
+  organizes_training: null,
+  lead_role: '',
+  lead_organization: '',
+  lead_event_interest: '',
+  lead_timing: '',
+  lead_phone: '',
+  go_deeper: null,
+  improvement_note: '',
+  marketing_opt_in: false,
+}
+
+const DEFAULT_COLLEAGUE_TERM = 'a colleague'
+const DEFAULT_ORGANIZER_QUESTION =
+  'Do you organize training or events for a team, company, or association?'
+
+const DIMENSIONS: { key: 'rating_practical' | 'rating_actionable' | 'rating_relevant' | 'rating_engaging'; label: string }[] = [
+  { key: 'rating_practical', label: 'Practical' },
+  { key: 'rating_actionable', label: 'Actionable' },
+  { key: 'rating_relevant', label: 'Relevant to your work' },
+  { key: 'rating_engaging', label: 'Engaging' },
+]
+
+const TIMING_OPTIONS: { value: LeadTiming; label: string }[] = [
+  { value: 'within_3_months', label: 'Within 3 months' },
+  { value: '3_to_6_months', label: '3 to 6 months' },
+  { value: 'later', label: 'Later' },
+  { value: 'not_sure', label: 'Not sure' },
+]
+
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
+const LINKEDIN_RECOMMEND_URL =
+  'https://www.linkedin.com/in/iamlesliesamuel/details/recommendations/'
+
+// Attendees fill this in on their phones, so it's always the light brand theme
+// (data-theme="light" on the wrapper), whatever the device setting.
+
+// text-base (16px) on inputs stops iOS Safari from zooming in on focus.
+const inputCls =
+  'mt-1 block w-full rounded-brand-md border border-control-border bg-surface px-3 py-2.5 text-base text-ink placeholder:text-ink-muted focus:border-accent transition-colors'
+const labelCls = 'block text-[15px] font-semibold leading-6 text-ink'
+const optionalCls = 'font-normal text-ink-muted'
+const groupCls = 'space-y-3 rounded-brand-md border border-border bg-surface-sunken p-4'
+const groupTitleCls = 'text-[15px] font-semibold text-ink'
+const smallLabelCls = 'block text-label text-ink-muted'
+
+interface SavedState {
+  step: Step
+  done: boolean
+  form: FeedbackFormData
+  responseId: string | null
+  editKey: string | null
+}
+
+function storageKey(token: string) {
+  return `feedback:${token}`
+}
+
+function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [hovered, setHovered] = useState(0)
+
+  return (
+    <div className="flex gap-2 justify-center" role="group" aria-label="Star rating">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => onChange(star)}
+          onMouseEnter={() => setHovered(star)}
+          onMouseLeave={() => setHovered(0)}
+          className="flex h-12 w-12 items-center justify-center rounded-brand-sm transition-transform active:scale-90"
+          aria-label={`${star} star${star !== 1 ? 's' : ''}`}
+          aria-pressed={value === star}
+        >
+          {/* Ratings stars are filled gold (BRAND.md, Iconography). */}
+          <Star
+            aria-hidden="true"
+            strokeWidth={1.75}
+            className={cn(
+              'h-10 w-10 transition-colors',
+              star <= (hovered || value) ? 'fill-highlight text-highlight-text' : 'fill-none text-control-border',
+            )}
+          />
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function Pill({
+  active,
+  onClick,
+  children,
+  className = '',
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'rounded-brand-md text-[15px] font-medium transition-all active:scale-95',
+        active
+          ? 'border-2 border-accent bg-accent-tint text-accent font-semibold'
+          : 'border border-control-border bg-surface text-ink',
+        className,
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+function TapRating({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: number
+  onChange: (v: number) => void
+}) {
+  return (
+    <div>
+      <p className="mb-1.5 text-[15px] text-ink">{label}</p>
+      <div className="grid grid-cols-5 gap-2" role="group" aria-label={label}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <Pill
+            key={n}
+            active={value === n}
+            onClick={() => onChange(value === n ? 0 : n)}
+            className="h-11"
+          >
+            {n}
+          </Pill>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function YesNo({
+  value,
+  onChange,
+}: {
+  value: boolean | null
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2 mt-2">
+      <Pill active={value === true} onClick={() => onChange(true)} className="h-11">
+        Yes
+      </Pill>
+      <Pill active={value === false} onClick={() => onChange(false)} className="h-11">
+        No
+      </Pill>
+    </div>
+  )
+}
+
+/**
+ * The page's one gold action (BRAND.md, Button). Never disabled or faded:
+ * a tap with missing answers shows an inline error instead, and taps while
+ * a save is in flight are ignored (aria-busy) rather than greyed out.
+ */
+function PrimaryButton({
+  busy,
+  onClick,
+  children,
+  className = 'w-full',
+  type = 'button',
+}: {
+  busy?: boolean
+  onClick?: () => void
+  children: React.ReactNode
+  className?: string
+  type?: 'button' | 'submit'
+}) {
+  return (
+    <Button
+      type={type}
+      variant="primary"
+      aria-busy={busy || undefined}
+      onClick={onClick ? () => { if (!busy) onClick() } : undefined}
+      className={cn('h-12', className)}
+    >
+      {children}
+    </Button>
+  )
+}
+
+
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Button variant="secondary" onClick={onClick} className="h-12 flex-1">
+      <ArrowLeft aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+      Back
+    </Button>
+  )
+}
+
+/** Light brand page: compact band with the event name, then the form column. */
+export function FeedbackShell({ eventName, children }: { eventName: string; children: React.ReactNode }) {
+  return (
+    <ClientPage compact label="Session feedback" headline={eventName}>
+      {children}
+    </ClientPage>
+  )
+}
+
+function ContinueLabel({ pending, label = 'Continue', pendingLabel = 'Saving…' }: { pending: boolean; label?: string; pendingLabel?: string }) {
+  if (pending) return <>{pendingLabel}</>
+  return (
+    <>
+      {label}
+      <ArrowRight aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+    </>
+  )
+}
+
+export function TestimonialForm({
+  token,
+  opportunity,
+}: {
+  token: string
+  opportunity: PublicOpportunityData
+}) {
+  const [step, setStep] = useState<Step>(1)
+  const [done, setDone] = useState(false)
+  const [form, setForm] = useState<FeedbackFormData>(EMPTY_FORM)
+  const [responseId, setResponseId] = useState<string | null>(null)
+  const [editKey, setEditKey] = useState<string | null>(null)
+  const [restored, setRestored] = useState(false)
+  const [error, setError] = useState('')
+  const [linkedInClicked, setLinkedInClicked] = useState(false)
+  // Steps where Continue was tapped with required answers missing: show the inline errors.
+  const [tried, setTried] = useState<Partial<Record<Step, boolean>>>({})
+  const [isPending, startTransition] = useTransition()
+
+  const speakerFirst = opportunity.speaker_name?.split(' ')[0] || 'Leslie'
+  const colleagueTerm = opportunity.feedback_colleague_term?.trim() || DEFAULT_COLLEAGUE_TERM
+  const consentMode = consentModeOf(opportunity.feedback_consent_mode)
+  const organizerQuestion =
+    opportunity.feedback_organizer_question?.trim() || DEFAULT_ORGANIZER_QUESTION
+
+  // Restore progress if the phone reloads the tab mid-form (common when
+  // switching apps). Keeps the same response record instead of a duplicate.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(storageKey(token))
+      if (raw) {
+        const saved = JSON.parse(raw) as SavedState
+        setForm({ ...EMPTY_FORM, ...saved.form })
+        setStep(saved.step)
+        setDone(saved.done)
+        setResponseId(saved.responseId)
+        setEditKey(saved.editKey)
+      }
+    } catch {
+      // storage unavailable; start fresh
+    }
+    setRestored(true)
+  }, [token])
+
+  useEffect(() => {
+    if (!restored) return
+    try {
+      const state: SavedState = { step, done, form, responseId, editKey }
+      sessionStorage.setItem(storageKey(token), JSON.stringify(state))
+    } catch {
+      // ignore
+    }
+  }, [restored, token, step, done, form, responseId, editKey])
+
+  useEffect(() => {
+    window.scrollTo({ top: 0 })
+  }, [step, done])
+
+  function set<K extends keyof FeedbackFormData>(key: K, value: FeedbackFormData[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  /**
+   * Save after each step. Step 1 must succeed (it creates the record).
+   * Steps 2 and 3 move on even if the save fails, because every save sends
+   * the full form, so the next successful save catches up. Step 4 must succeed.
+   */
+  function saveAndGo(current: Step) {
+    setError('')
+    startTransition(async () => {
+      const result = await saveFeedbackStep(token, responseId, editKey, current, form)
+      if (result.success) {
+        setResponseId(result.id)
+        setEditKey(result.editKey)
+      } else if (current === 1 || current === 4 || !responseId) {
+        setError(result.error)
+        return
+      }
+      if (current === 4) setDone(true)
+      else setStep((current + 1) as Step)
+    })
+  }
+
+  const emailValid = EMAIL_RE.test(form.email.trim())
+  const nameMissing = form.first_name.trim().length === 0
+  const step1Valid = !nameMissing && emailValid
+
+  // ── Thank-you screen ───────────────────────────────────────
+  if (done) {
+    // LinkedIn ask: only when the event turns it on, and only for happy attendees
+    // who wrote something and said it can be shared.
+    const showLinkedIn =
+      opportunity.feedback_show_linkedin === true &&
+      form.rating >= 4 && form.testimonial_text.trim().length > 0 && form.share_permission === true
+    return (
+      <FeedbackShell eventName={opportunity.event_name}>
+        {/* All four steps done: the progress row, filled in. */}
+        <HexProgress total={4} current={4} label="All 4 steps done" className="mb-5 justify-center" />
+        <div className="mb-6 text-center">
+          <h2 className="text-heading text-ink">
+            You&apos;re all set, {form.first_name.trim()}.
+          </h2>
+          <p className="mt-2 whitespace-pre-line text-body-mobile text-ink-muted">
+            {opportunity.feedback_thanks_message?.trim() || DEFAULT_THANKS_MESSAGE}
+          </p>
+        </div>
+
+        {/* Primary action, directly below the heading and message. The screen's one gold button. */}
+        {opportunity.has_resource && (
+          <a
+            href={LEARN_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonClasses('primary', 'mb-6 h-12 w-full text-base')}
+          >
+            {STARTER_KIT_LABEL}
+          </a>
+        )}
+
+        {showLinkedIn && (
+          <div className="rounded-brand-md border border-border bg-surface p-5">
+            {linkedInClicked ? (
+              <p className="text-center text-[15px] leading-relaxed text-ink-muted">
+                Your words are copied to your clipboard. On LinkedIn, tap{' '}
+                <strong className="text-ink">Recommend</strong> and paste them in. Thank
+                you!
+              </p>
+            ) : (
+              <>
+                <div className="mb-5 text-center">
+                  <h3 className="mb-2 text-title text-ink">
+                    Loved the session?
+                  </h3>
+                  <p className="text-[15px] leading-relaxed text-ink-muted">
+                    Make it official with a LinkedIn recommendation. I&apos;ll copy what you
+                    wrote so you can paste and post.
+                  </p>
+                </div>
+                {/* Secondary style: "Open your starter kit" is the primary action. */}
+                <Button
+                  variant="secondary"
+                  className="h-12 w-full"
+                  onClick={() => {
+                    window.open(LINKEDIN_RECOMMEND_URL, '_blank', 'noopener,noreferrer')
+                    navigator.clipboard?.writeText(form.testimonial_text).catch(() => {})
+                    setLinkedInClicked(true)
+                  }}
+                >
+                  Recommend on LinkedIn
+                  <ArrowRight aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </FeedbackShell>
+    )
+  }
+
+  return (
+    <FeedbackShell eventName={opportunity.event_name}>
+        {/* Hexagon step progress: done steps filled blue, the current one dashed gold. */}
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <HexProgress total={4} current={step - 1} label={`Step ${step} of 4`} />
+          <p className="text-caption text-ink-muted" aria-hidden="true">Step {step} of 4</p>
+        </div>
+
+        <div className="rounded-brand-md border border-border bg-surface p-5">
+          {error && (
+            <p role="alert" className="mb-4 flex items-start gap-2 rounded-brand-sm bg-danger-tint px-3 py-2 text-[15px] text-danger">
+              <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
+              {error}
+            </p>
+          )}
+
+          {/* ── Step 1: Get the recording ── */}
+          {step === 1 && (
+            <form
+              className="space-y-5"
+              // Our own inline errors replace the browser's popups (the gold button is never disabled).
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (isPending) return
+                if (!step1Valid) { setTried((t) => ({ ...t, 1: true })); return }
+                saveAndGo(1)
+              }}
+            >
+              <div>
+                <h2 className="text-heading text-ink">
+                  {opportunity.feedback_step1_heading?.trim() || DEFAULT_STEP1_HEADING}
+                </h2>
+                <p className="mt-1 text-[15px] leading-6 text-ink-muted">
+                  {opportunity.feedback_step1_subtext?.trim() || DEFAULT_STEP1_SUBTEXT}
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="fb-first-name" className={labelCls}>
+                  First name
+                </label>
+                <input
+                  id="fb-first-name"
+                  type="text"
+                  autoComplete="given-name"
+                  autoCapitalize="words"
+                  enterKeyHint="next"
+                  required
+                  value={form.first_name}
+                  onChange={(e) => set('first_name', e.target.value)}
+                  aria-invalid={tried[1] && nameMissing ? true : undefined}
+                  aria-describedby={tried[1] && nameMissing ? 'fb-first-name-error' : undefined}
+                  className={inputCls}
+                />
+                {tried[1] && nameMissing && <FieldError id="fb-first-name-error">Please enter your first name.</FieldError>}
+              </div>
+
+              <div>
+                <label htmlFor="fb-email" className={labelCls}>
+                  Email
+                </label>
+                <input
+                  id="fb-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  enterKeyHint="go"
+                  required
+                  value={form.email}
+                  onChange={(e) => set('email', e.target.value)}
+                  aria-invalid={(tried[1] || form.email.trim().length > 3) && !emailValid ? true : undefined}
+                  aria-describedby={(tried[1] || form.email.trim().length > 3) && !emailValid ? 'fb-email-error' : undefined}
+                  className={inputCls}
+                />
+                {(tried[1] || form.email.trim().length > 3) && !emailValid && (
+                  <FieldError id="fb-email-error">
+                    {form.email.trim() ? 'Please check your email address.' : 'Please enter your email address.'}
+                  </FieldError>
+                )}
+                {consentMode === 'disclosure' ? (
+                  <p className="mt-2 text-caption text-ink-muted">{consentText('disclosure', !!opportunity.has_resource)}</p>
+                ) : (
+                  <label className="mt-3 flex items-start gap-3 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={form.marketing_opt_in === true}
+                      onChange={(e) => set('marketing_opt_in', e.target.checked)}
+                      className="mt-0.5 h-5 w-5 shrink-0 accent-accent"
+                    />
+                    <span className="text-caption text-ink-muted">{consentText('checkbox', !!opportunity.has_resource)}</span>
+                  </label>
+                )}
+              </div>
+
+              <PrimaryButton type="submit" busy={isPending} className="w-full">
+                <ContinueLabel pending={isPending} />
+              </PrimaryButton>
+            </form>
+          )}
+
+          {/* ── Step 2: How it went ── */}
+          {step === 2 && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-heading text-ink">How was the session?</h2>
+              </div>
+
+              <div className="space-y-2 text-center">
+                <StarRating value={form.rating} onChange={(v) => set('rating', v)} />
+                {form.rating === 0 ? (
+                  tried[2]
+                    ? <div className="flex justify-center"><FieldError>Tap a star to rate the session.</FieldError></div>
+                    : <p className="text-caption text-ink-muted">Tap to rate</p>
+                ) : (
+                  <p className="text-label font-semibold text-ink">
+                    {['', 'Poor', 'Fair', 'Good', 'Great', 'Outstanding!'][form.rating]}
+                  </p>
+                )}
+              </div>
+
+              {form.rating > 0 && form.rating <= 3 && (
+                <div>
+                  <label htmlFor="fb-missing" className={labelCls}>
+                    What was missing?{' '}
+                    <span className={optionalCls}>(optional)</span>
+                  </label>
+                  <textarea
+                    id="fb-missing"
+                    rows={3}
+                    value={form.missing_feedback}
+                    onChange={(e) => set('missing_feedback', e.target.value)}
+                    className={inputCls + ' resize-none mt-2'}
+                  />
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <p className={groupTitleCls}>
+                  Quick ratings <span className={optionalCls}>(optional, 1 to 5)</span>
+                </p>
+                {DIMENSIONS.map((d) => (
+                  <TapRating
+                    key={d.key}
+                    label={d.label}
+                    value={form[d.key]}
+                    onChange={(v) => set(d.key, v)}
+                  />
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <BackButton onClick={() => setStep(1)} />
+                <PrimaryButton
+                  className="flex-[2]"
+                  busy={isPending}
+                  onClick={() => {
+                    if (!form.rating) { setTried((t) => ({ ...t, 2: true })); return }
+                    saveAndGo(2)
+                  }}
+                >
+                  <ContinueLabel pending={isPending} />
+                </PrimaryButton>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 3: In your words ── */}
+          {step === 3 && (
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-heading text-ink">In your words</h2>
+              </div>
+
+              <div>
+                <label htmlFor="fb-words" className={labelCls}>
+                  If you were telling {colleagueTerm} about this session, what would you say?{' '}
+                  <span className={optionalCls}>(optional)</span>
+                </label>
+                <textarea
+                  id="fb-words"
+                  rows={4}
+                  value={form.testimonial_text}
+                  onChange={(e) => set('testimonial_text', e.target.value)}
+                  className={inputCls + ' resize-none mt-2'}
+                />
+              </div>
+
+              {/* Hexagon checkbox (BRAND.md, Checklists). The text toggles it too. */}
+              <div className="flex items-start gap-1">
+                <HexCheckbox
+                  checked={form.share_permission}
+                  onChange={(v) => set('share_permission', v)}
+                  label={`${speakerFirst} can share my response publicly with my name.`}
+                  className="-ml-2.5 -mt-2.5"
+                />
+                <span
+                  aria-hidden="true"
+                  onClick={() => set('share_permission', !form.share_permission)}
+                  className="cursor-pointer select-none text-[15px] leading-6 text-ink"
+                >
+                  {speakerFirst} can share my response publicly with my name.
+                </span>
+              </div>
+
+              <div className={groupCls}>
+                <p className={groupTitleCls}>
+                  About you <span className={optionalCls}>(optional)</span>
+                </p>
+                <div>
+                  <label htmlFor="fb-title" className="sr-only">
+                    Job title
+                  </label>
+                  <input
+                    id="fb-title"
+                    type="text"
+                    autoComplete="organization-title"
+                    value={form.submitter_title}
+                    onChange={(e) => set('submitter_title', e.target.value)}
+                    placeholder="Your role"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="fb-company" className="sr-only">
+                    Company or organization
+                  </label>
+                  <input
+                    id="fb-company"
+                    type="text"
+                    autoComplete="organization"
+                    value={form.submitter_company}
+                    onChange={(e) => set('submitter_company', e.target.value)}
+                    placeholder="Company or organization"
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <BackButton onClick={() => setStep(2)} />
+                <PrimaryButton
+                  className="flex-[2]"
+                  busy={isPending}
+                  onClick={() => saveAndGo(3)}
+                >
+                  <ContinueLabel pending={isPending} />
+                </PrimaryButton>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 4: Two last questions ── */}
+          {step === 4 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-heading text-ink">Two last questions</h2>
+              </div>
+
+              <div>
+                <p className={labelCls}>{organizerQuestion}</p>
+                <YesNo
+                  value={form.organizes_training}
+                  onChange={(v) => set('organizes_training', v)}
+                />
+              </div>
+
+              {form.organizes_training === true && (
+                <div className={groupCls}>
+                  <div>
+                    <label htmlFor="fb-lead-role" className={smallLabelCls}>
+                      Role
+                    </label>
+                    <input
+                      id="fb-lead-role"
+                      type="text"
+                      value={form.lead_role}
+                      onChange={(e) => set('lead_role', e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="fb-lead-org" className={smallLabelCls}>
+                      Organization
+                    </label>
+                    <input
+                      id="fb-lead-org"
+                      type="text"
+                      autoComplete="organization"
+                      value={form.lead_organization}
+                      onChange={(e) => set('lead_organization', e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="fb-lead-interest" className={smallLabelCls}>
+                      What kind of event or training are you thinking about?
+                    </label>
+                    <textarea
+                      id="fb-lead-interest"
+                      rows={3}
+                      value={form.lead_event_interest}
+                      onChange={(e) => set('lead_event_interest', e.target.value)}
+                      className={inputCls + ' resize-none'}
+                    />
+                  </div>
+                  <div>
+                    <p className={smallLabelCls}>Timing</p>
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      {TIMING_OPTIONS.map((t) => (
+                        <Pill
+                          key={t.value}
+                          active={form.lead_timing === t.value}
+                          onClick={() =>
+                            set('lead_timing', form.lead_timing === t.value ? '' : t.value)
+                          }
+                          className="h-11 px-2"
+                        >
+                          {t.label}
+                        </Pill>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="fb-lead-phone" className={smallLabelCls}>
+                      Phone <span className="font-normal">(optional)</span>
+                    </label>
+                    <input
+                      id="fb-lead-phone"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={form.lead_phone}
+                      onChange={(e) => set('lead_phone', e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <p className={labelCls}>
+                  Want to hear from me about going deeper with AI in your business?
+                </p>
+                <YesNo value={form.go_deeper} onChange={(v) => set('go_deeper', v)} />
+              </div>
+
+              <div>
+                <label htmlFor="fb-improve" className={labelCls}>
+                  One thing I could improve{' '}
+                  <span className={optionalCls}>(only I see this)</span>
+                </label>
+                <textarea
+                  id="fb-improve"
+                  rows={3}
+                  value={form.improvement_note}
+                  onChange={(e) => set('improvement_note', e.target.value)}
+                  className={inputCls + ' resize-none mt-2'}
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <BackButton onClick={() => setStep(3)} />
+                <PrimaryButton
+                  className="flex-[2]"
+                  busy={isPending}
+                  onClick={() => saveAndGo(4)}
+                >
+                  {isPending ? 'Submitting…' : 'Send my feedback'}
+                </PrimaryButton>
+              </div>
+            </div>
+          )}
+        </div>
+    </FeedbackShell>
+  )
+}

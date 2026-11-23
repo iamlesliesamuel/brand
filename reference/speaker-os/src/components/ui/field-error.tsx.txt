@@ -1,0 +1,26 @@
+import { AlertCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+/**
+ * Inline error under a form field: an icon plus the words (color never carries
+ * the meaning alone). Client forms show these on tap instead of the browser's
+ * own validation popups.
+ */
+export function FieldError({ id, children, className }: { id?: string; children: React.ReactNode; className?: string }) {
+  return (
+    <p id={id} role="alert" className={cn('mt-1 flex items-center gap-1.5 text-label text-danger', className)}>
+      <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+      {children}
+    </p>
+  )
+}
+
+/** A form-level error box (a failed save), same tone as FieldError. */
+export function FormError({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <p role="alert" className={cn('flex items-start gap-2 rounded-brand-sm bg-danger-tint px-3 py-2 text-[15px] text-danger', className)}>
+      <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
+      {children}
+    </p>
+  )
+}

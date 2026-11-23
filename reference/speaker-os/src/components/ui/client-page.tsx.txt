@@ -1,0 +1,75 @@
+import { ReportHeader } from './report-header'
+import { cn } from '@/lib/utils'
+
+// The frame for every page a client or attendee sees (BRAND.md: "Light for
+// anything a client sees", ReportHeader). Always the light theme, whatever the
+// viewer's device or app setting: data-theme="light" re-resolves the tokens
+// inside, and data-client-page makes globals.css paint <html>/<body> paper.
+
+export function ClientPage({
+  label,
+  headline,
+  meta,
+  action,
+  compact = false,
+  width = 'narrow',
+  children,
+  className,
+}: {
+  /** Short band label, such as "Session feedback". Sentence case. */
+  label: string
+  /** The band's display headline. */
+  headline: string
+  meta?: React.ReactNode
+  /** One on-band secondary button. */
+  action?: React.ReactNode
+  /** Shorter band for pages people fill in on a phone. */
+  compact?: boolean
+  /** narrow: one column (forms, cards). medium: 760px reading column (documents). wide: 960px, two columns. */
+  width?: 'narrow' | 'medium' | 'wide'
+  children: React.ReactNode
+  className?: string
+}) {
+  // Band and content share one column width so their left edges line up.
+  // max-w-lg plus the sm:px-6 padding gives a 464px content column for forms.
+  const maxWidth = width === 'wide' ? 'max-w-[960px]' : width === 'medium' ? 'max-w-[760px]' : 'max-w-lg'
+  return (
+    <div data-theme="light" data-client-page className="min-h-[100dvh] bg-bg text-ink">
+      <ReportHeader
+        compact={compact}
+        label={label}
+        headline={headline}
+        meta={meta}
+        action={action}
+        maxWidthClass={maxWidth}
+      />
+      <main className={cn('mx-auto w-full px-4 pb-10 pt-5 sm:px-6 sm:pt-8', maxWidth, className)}>
+        {children}
+      </main>
+    </div>
+  )
+}
+
+/** "This link isn't active" pages: the message, plus a way to still reach Leslie. */
+export function ClientPageMessage({
+  label,
+  headline,
+  body,
+}: {
+  label: string
+  headline: string
+  body: string
+}) {
+  return (
+    <ClientPage compact label={label} headline={headline}>
+      <p className="text-center text-body-mobile text-ink-muted">{body}</p>
+      <p className="mt-3 text-center text-body-mobile text-ink-muted">
+        You can still find me at{' '}
+        <a href="https://iamlesliesamuel.com" className="font-semibold text-accent underline underline-offset-2">
+          iamlesliesamuel.com
+        </a>
+        .
+      </p>
+    </ClientPage>
+  )
+}

@@ -1,0 +1,71 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+
+const TOP_ZONE = 60 // px from the top where the bar always shows
+const JITTER = 4 // px; smaller moves are ignored (and don't reset the baseline)
+
+/**
+ * Whether the bottom nav should be collapsed: collapses while scrolling down
+ * (past the top 60px), expands when scrolling up or near the top. Reads
+ * window scroll once per animation frame. `locked` (a sheet open from the nav)
+ * keeps it expanded. Every route change starts expanded; that reset happens
+ * during render, so a new page never paints a frame of a collapsed bar.
+ */
+export function useCollapsingNav(pathname: string, locked: boolean) {
+  const [collapsed, setCollapsed] = useState(false)
+  const [lastPath, setLastPath] = useState(pathname)
+  // Set on a route change. Until the person touches, wheels or presses a key,
+  // scroll readings only move the baseline: the loading skeleton shortens the
+  // page and the browser then jumps back down when the content arrives, and
+  // those jumps must not collapse the new page's bar.
+  const rebase = useRef(false)
+  if (pathname !== lastPath) {
+    setLastPath(pathname)
+    setCollapsed(false)
+    rebase.current = true
+  }
+
+  const lockedRef = useRef(locked)
+  lockedRef.current = locked
+  if (locked && collapsed) setCollapsed(false)
+
+  useEffect(() => {
+    let lastY = window.scrollY
+    let frame = 0
+    const update = () => {
+      frame = 0
+      const y = window.scrollY
+      if (rebase.current) {
+        lastY = y
+        return
+      }
+      if (y <= TOP_ZONE) {
+        lastY = y
+        setCollapsed(false)
+        return
+      }
+      const delta = y - lastY
+      if (Math.abs(delta) <= JITTER) return // keep lastY, so slow scrolls add up
+      lastY = y
+      setCollapsed(delta > 0 && !lockedRef.current)
+    }
+    const onScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(update)
+    }
+    const userInput = () => { rebase.current = false }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('touchstart', userInput, { passive: true })
+    window.addEventListener('wheel', userInput, { passive: true })
+    window.addEventListener('keydown', userInput)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('touchstart', userInput)
+      window.removeEventListener('wheel', userInput)
+      window.removeEventListener('keydown', userInput)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [])
+
+  return { collapsed, expand: () => setCollapsed(false) }
+}

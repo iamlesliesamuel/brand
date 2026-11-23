@@ -1,0 +1,66 @@
+import type { Metadata, Viewport } from "next";
+import { RegisterServiceWorker } from "@/components/pwa/register-sw";
+import { ThemeProvider } from "@/components/providers/theme-provider";
+import { THEME_BOOT_SCRIPT } from "@/components/providers/theme-boot";
+import { PrivacyProvider } from "@/components/providers/privacy-provider";
+import { brandFontVariables } from "@/brand/fonts";
+import { THEME_COLORS } from "@/brand/theme-colors";
+// Order matters: brand tokens, then app glue, then the app's global CSS.
+import "../../docs/brand/brand-tokens.css";
+import "@/brand/brand.css";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Speaker OS",
+  description: "Your speaking opportunity command center",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/brand/favicon.ico", sizes: "48x48" },
+      { url: "/brand/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/brand/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/ls-app-icon-square.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/brand/apple-touch-icon-180.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Speaker OS",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Edge to edge, so env(safe-area-inset-*) works: the bottom nav sits above
+  // the iPhone home indicator and the header below the status bar.
+  viewportFit: "cover",
+  // No maximumScale: people must be able to pinch-zoom. Form fields are 16px on
+  // phones (globals.css) so iOS doesn't auto-zoom when one is focused.
+  themeColor: THEME_COLORS.dark,
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" className={brandFontVariables} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
+      <body
+        className="font-sans antialiased"
+      >
+        <ThemeProvider>
+          <PrivacyProvider>
+            <RegisterServiceWorker />
+            {children}
+          </PrivacyProvider>
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}

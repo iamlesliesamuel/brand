@@ -1,0 +1,312 @@
+'use client'
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { usePathname, useRouter } from 'next/navigation'
+import { ArrowRight, CheckCircle2, Circle, Search, X } from 'lucide-react'
+import { cn, formatDate } from '@/lib/utils'
+import { EventPhoto } from '@/components/ui/event-photo'
+import { PersonAvatar, MyAvatar } from '@/components/ui/person-avatar'
+import { EventStatusBadge } from '@/components/ui/status-badge'
+import type { OpportunityStatus } from '@/lib/types'
+import { EMPTY_RESULTS, matchPages, splitMatch, type SearchResults } from '@/lib/search'
+
+/** Bolds the part of `text` that matches the query. */
+function Hl({ text, q }: { text: string; q: string }) {
+  return (
+    <>
+      {splitMatch(text, q).map((p, i) =>
+        p.match ? <mark key={i} className="rounded-[3px] bg-accent-tint font-semibold text-ink">{p.text}</mark> : <span key={i}>{p.text}</span>,
+      )}
+    </>
+  )
+}
+
+type Row = { key: string; href: string; node: React.ReactNode }
+
+/**
+ * Universal search: the header's search icon (or Cmd/Ctrl+K, or "/") opens a
+ * search box that looks across events, contacts, messages and tasks as you
+ * type, plus quick jumps to pages. Arrow keys move, Enter opens, Esc closes.
+ */
+export function GlobalSearch() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS)
+  const [loading, setLoading] = useState(false)
+  const [active, setActive] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  const close = useCallback(() => {
+    setOpen(false)
+    setQ('')
+    setResults(EMPTY_RESULTS)
+  }, [])
+
+  // Open with Cmd/Ctrl+K anywhere, or "/" when not typing in a field.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement)?.tagName) || (e.target as HTMLElement)?.isContentEditable
+      if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !typing)) {
+        e.preventDefault()
+        setOpen(true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  useEffect(() => close(), [pathname, close])
+
+  // Focus the box and stop the page behind from scrolling while open.
+  useEffect(() => {
+    if (!open) return
+    inputRef.current?.focus()
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [open])
+
+  // Search as you type (debounced; older requests are cancelled).
+  useEffect(() => {
+    const term = q.trim()
+    if (term.length < 2) { setResults(EMPTY_RESULTS); setLoading(false); return }
+    const ctrl = new AbortController()
+    setLoading(true)
+    const t = window.setTimeout(() => {
+      fetch(`/api/search?q=${encodeURIComponent(term)}`, { signal: ctrl.signal })
+        .then(r => (r.ok ? r.json() : EMPTY_RESULTS))
+        .then((data: SearchResults) => { setResults(data); setActive(0) })
+        .catch(() => {})
+        .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
+    }, 180)
+    return () => { ctrl.abort(); window.clearTimeout(t) }
+  }, [q])
+
+  const term = q.trim()
+  const pages = matchPages(term)
+
+  // Groups of rows, in display order; `rows` is the flat list for arrow keys.
+  const groups = useMemo(() => {
+    const g: { title: string; rows: Row[] }[] = []
+    if (results.events.length) g.push({
+      title: 'Events',
+      rows: results.events.map(e => ({
+        key: `e-${e.id}`,
+        href: `/opportunities/${e.id}`,
+        node: (
+          <>
+            <EventPhoto path={e.coverPhotoPath} name={e.name} types={e.types} className="h-10 w-10" iconClassName="h-5 w-5" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-body-sm font-semibold text-ink"><Hl text={e.name} q={term} /></span>
+              <span className="block truncate text-caption text-ink-muted">
+                {[e.organization, e.date ? formatDate(e.date) : null].filter(Boolean).join(' · ')}
+              </span>
+            </span>
+            <EventStatusBadge status={e.status as OpportunityStatus} className="shrink-0" />
+          </>
+        ),
+      })),
+    })
+    if (results.contacts.length) g.push({
+      title: 'Contacts',
+      rows: results.contacts.map(c => ({
+        key: c.key,
+        href: c.href,
+        node: (
+          <>
+            <PersonAvatar name={c.name} email={c.email} photoPath={c.photoPath} size={40} />
+            <span className="min-w-0 flex-1">
+              <span className="privacy-blur block truncate text-body-sm font-semibold text-ink"><Hl text={c.name} q={term} /></span>
+              <span className="block truncate text-caption text-ink-muted">
+                {c.email && <span className="privacy-blur"><Hl text={c.email} q={term} /></span>}
+                {c.email && (c.role || c.eventName) && ' · '}
+                {[c.role, c.eventName].filter(Boolean).join(' · ')}
+              </span>
+            </span>
+          </>
+        ),
+      })),
+    })
+    if (results.messages.length) g.push({
+      title: 'Messages',
+      rows: results.messages.map(m => ({
+        key: `m-${m.threadId}`,
+        href: `/outreach/${m.threadId}`,
+        node: (
+          <>
+            {m.sent ? <MyAvatar size={40} /> : <PersonAvatar name={m.contactName || m.eventName} email={m.fromEmail} size={40} />}
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-body-sm font-semibold text-ink">
+                {m.subject ? <Hl text={m.subject} q={term} /> : m.eventName ?? 'Conversation'}
+              </span>
+              {m.excerpt && (
+                <span className="privacy-blur block truncate text-caption text-ink-muted">
+                  {m.sent ? 'You: ' : ''}<Hl text={m.excerpt} q={term} />
+                </span>
+              )}
+              {m.eventName && <span className="block truncate text-caption text-ink-muted">{m.eventName}</span>}
+            </span>
+          </>
+        ),
+      })),
+    })
+    if (results.tasks.length) g.push({
+      title: 'Tasks',
+      rows: results.tasks.map(t => ({
+        key: `t-${t.id}`,
+        href: `/opportunities/${t.opportunityId}`,
+        node: (
+          <>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center text-ink-muted">
+              {t.done
+                ? <CheckCircle2 aria-label="Done" className="h-5 w-5" strokeWidth={1.75} />
+                : <Circle aria-label="Open" className="h-5 w-5" strokeWidth={1.75} />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className={cn('block truncate text-body-sm font-semibold', t.done ? 'text-ink-muted line-through' : 'text-ink')}><Hl text={t.title} q={term} /></span>
+              <span className="block truncate text-caption text-ink-muted">
+                {[t.eventName, t.dueDate ? `Due ${formatDate(t.dueDate)}` : null].filter(Boolean).join(' · ')}
+              </span>
+            </span>
+          </>
+        ),
+      })),
+    })
+    if (pages.length) g.push({
+      title: term ? 'Pages' : 'Jump to',
+      rows: pages.map(p => ({
+        key: `p-${p.href}`,
+        href: p.href,
+        node: (
+          <>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center text-ink-muted">
+              <ArrowRight aria-hidden="true" className="h-5 w-5" strokeWidth={1.75} />
+            </span>
+            <span className="min-w-0 flex-1 text-body-sm font-semibold text-ink"><Hl text={p.label} q={term} /></span>
+          </>
+        ),
+      })),
+    })
+    return g
+  }, [results, pages, term])
+
+  const rows = groups.flatMap(g => g.rows)
+  const hasResults = results.events.length + results.contacts.length + results.messages.length + results.tasks.length > 0
+
+  function go(href: string) {
+    router.push(href)
+    close()
+  }
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') { e.preventDefault(); close() }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); setActive(i => Math.min(rows.length - 1, i + 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(i => Math.max(0, i - 1)) }
+    else if (e.key === 'Enter' && rows[active]) { e.preventDefault(); go(rows[active].href) }
+  }
+
+  useEffect(() => {
+    listRef.current?.querySelector(`[data-index="${active}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [active])
+
+  let index = -1
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex h-10 w-10 items-center justify-center rounded-brand-md border-[1.5px] border-control-border text-ink transition-colors hover:bg-surface-sunken"
+        title="Search (Ctrl K)"
+        aria-label="Search"
+        aria-haspopup="dialog"
+      >
+        <Search aria-hidden="true" className="h-5 w-5" strokeWidth={1.75} />
+      </button>
+
+      {/* Portaled to <body>: the header's backdrop blur would otherwise trap a fixed overlay inside the header. */}
+      {open && createPortal(
+        <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Search">
+          <button type="button" aria-label="Close search" onClick={close} className="absolute inset-0 hidden bg-band/60 md:block" />
+          {/* Phones: full screen. Desktop: a panel near the top. */}
+          <div className="relative flex h-full flex-col bg-bg md:mx-auto md:mt-20 md:h-auto md:max-h-[70vh] md:max-w-xl md:overflow-hidden md:rounded-brand-lg md:border md:border-control-border md:bg-surface">
+            <div className="flex items-center gap-2 border-b border-border px-3 pb-3 pt-[calc(12px+env(safe-area-inset-top))] md:pt-3">
+              <div className="relative flex-1">
+                <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-muted" strokeWidth={1.75} />
+                <input
+                  ref={inputRef}
+                  type="search"
+                  value={q}
+                  onChange={e => setQ(e.target.value)}
+                  onKeyDown={onKeyDown}
+                  placeholder="Search everything"
+                  aria-label="Search"
+                  aria-controls="search-results"
+                  aria-activedescendant={rows[active] ? `sr-${active}` : undefined}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="w-full rounded-brand-md border border-control-border bg-surface-sunken py-2.5 pl-10 pr-10 text-body-sm text-ink placeholder:text-ink-muted focus:border-accent [&::-webkit-search-cancel-button]:hidden"
+                />
+                {q && (
+                  <button
+                    type="button"
+                    onClick={() => { setQ(''); inputRef.current?.focus() }}
+                    aria-label="Clear search"
+                    className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-ink-muted hover:text-ink"
+                  >
+                    <X aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+                  </button>
+                )}
+              </div>
+              <button type="button" onClick={close} className="whitespace-nowrap px-2 text-label font-semibold text-accent">
+                Cancel
+              </button>
+            </div>
+
+            <div ref={listRef} id="search-results" role="listbox" className="flex-1 overflow-y-auto px-2 pb-6 pt-2">
+              {term.length >= 2 && !loading && !hasResults && (
+                <p className="px-3 py-4 text-body-sm text-ink-muted">Nothing found for &ldquo;{term}&rdquo;.</p>
+              )}
+              {term.length >= 2 && loading && !hasResults && (
+                <p className="px-3 py-4 text-body-sm text-ink-muted" aria-live="polite">Searching…</p>
+              )}
+              {term.length < 2 && (
+                <p className="px-3 pb-1 pt-2 text-caption text-ink-muted">Type at least two letters to search events, contacts, messages and tasks.</p>
+              )}
+              {groups.map(g => (
+                <section key={g.title} className="pt-2">
+                  <h2 className="px-3 pb-1 text-label font-semibold text-ink-muted">{g.title}</h2>
+                  {g.rows.map(r => {
+                    index++
+                    const i = index
+                    return (
+                      <a
+                        key={r.key}
+                        id={`sr-${i}`}
+                        data-index={i}
+                        role="option"
+                        aria-selected={i === active}
+                        href={r.href}
+                        onClick={e => { e.preventDefault(); go(r.href) }}
+                        onMouseMove={() => setActive(i)}
+                        className={cn('flex items-center gap-3 rounded-brand-sm px-3 py-2', i === active ? 'bg-surface-sunken md:bg-accent-tint' : '')}
+                      >
+                        {r.node}
+                      </a>
+                    )
+                  })}
+                </section>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
+  )
+}

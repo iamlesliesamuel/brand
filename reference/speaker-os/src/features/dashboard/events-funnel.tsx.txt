@@ -1,0 +1,74 @@
+import Link from 'next/link'
+import { ChevronRight } from 'lucide-react'
+import type { OpportunityStatus } from '@/lib/types'
+import { statusLabel } from '@/lib/utils'
+
+const ACTIVE: OpportunityStatus[] = ['lead', 'contacted', 'proposal_sent', 'negotiating', 'booked']
+const DONE: OpportunityStatus[] = ['delivered', 'follow_up', 'closed']
+
+/**
+ * Dashboard Events card body: the active stages as a compact funnel (one row
+ * each, bar sized to the count, so you see where the pipeline thins out),
+ * then finished events on one quiet line. Every row opens the Events list
+ * filtered to that status. Bars are one accent color (statuses are never a
+ * color each); Booked is the solid one, the stages before it lighter.
+ */
+export function EventsFunnel({ counts }: { counts: Record<OpportunityStatus, number> }) {
+  const max = Math.max(1, ...ACTIVE.map(s => counts[s] ?? 0))
+  const active = ACTIVE.reduce((n, s) => n + (counts[s] ?? 0), 0)
+  const done = DONE.filter(s => (counts[s] ?? 0) > 0)
+
+  if (active === 0 && done.length === 0) {
+    return (
+      <div className="flex flex-col items-start gap-1">
+        <p className="text-caption text-ink-muted">No events yet</p>
+        <Link href="/opportunities/new" className="text-label font-semibold text-accent hover:underline">Add your first event</Link>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <ul className="-mx-2 space-y-0.5" aria-label="Events by stage">
+        {ACTIVE.map(s => {
+          const n = counts[s] ?? 0
+          const booked = s === 'booked'
+          return (
+            <li key={s}>
+              <Link
+                href={`/pipeline?status=${s}`}
+                className="group grid grid-cols-[7.5rem_1fr_2.5rem] items-center gap-3 rounded-brand-sm px-2 py-1 transition-colors hover:bg-surface-sunken"
+              >
+                <span className={booked ? 'text-body-sm font-semibold text-ink' : 'text-body-sm text-ink'}>{statusLabel(s)}</span>
+                <span className="h-2 overflow-hidden rounded-full bg-surface-sunken group-hover:bg-border" aria-hidden="true">
+                  {n > 0 && (
+                    <span
+                      className={`block h-full rounded-full ${booked ? 'bg-accent' : 'bg-accent/45'}`}
+                      style={{ width: `max(6px, ${(n / max) * 100}%)` }}
+                    />
+                  )}
+                </span>
+                <span className={`text-right tabular-nums ${n ? 'text-body-sm font-semibold text-ink' : 'text-body-sm text-ink-muted'}`}>{n}</span>
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+
+      {done.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-1 gap-y-1 border-t border-border pt-3 text-caption text-ink-muted">
+          <span className="mr-1">Finished:</span>
+          {done.map((s, i) => (
+            <span key={s} className="inline-flex items-center">
+              {i > 0 && <span aria-hidden="true" className="mr-1">·</span>}
+              <Link href={`/pipeline?status=${s}`} className="inline-flex items-center gap-0.5 hover:text-ink hover:underline">
+                <span className="font-semibold tabular-nums text-ink">{counts[s]}</span>{'\u00a0'}{statusLabel(s, counts[s]).toLowerCase()}
+                <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </Link>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

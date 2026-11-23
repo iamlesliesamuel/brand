@@ -1,0 +1,170 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { CalendarDays, EyeOff, LayoutDashboard, Menu, Send, Users } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { usePrivacy } from '@/components/providers/privacy-provider'
+import { AccountMenu } from '@/components/layout/account-menu'
+import { OutreachNavBadge } from '@/components/layout/outreach-nav-badge'
+import { Logo } from '@/components/ui/logo'
+import { HexAddButton } from '@/components/ui/hexagon'
+import { QuickAddMenu, onOpenQuickAdd, type QuickAddView } from '@/components/ui/quick-add-menu'
+import { GlobalSearch } from '@/components/layout/global-search'
+import { ViewerProvider } from '@/components/providers/viewer-provider'
+import { useCollapsingNav } from '@/components/layout/use-collapsing-nav'
+import { BackgroundSync } from '@/components/pwa/background-sync'
+
+const navItems = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/pipeline', label: 'Events', icon: CalendarDays },
+  { href: '/outreach', label: 'Outreach', icon: Send },
+  { href: '/contacts', label: 'Contacts', icon: Users },
+]
+
+const FULL_SCREEN = /^\/opportunities\/[^/]+\/(collect|performance)(\/|$)/
+
+export function AppShell({
+  children,
+  userName,
+  profilePhotoPath = null,
+}: {
+  children: React.ReactNode
+  userName: string
+  profilePhotoPath?: string | null
+}) {
+  const pathname = usePathname()
+  const { privacyMode, togglePrivacy } = usePrivacy()
+  const [addOpen, setAddOpen] = useState(false)
+  const [addView, setAddView] = useState<QuickAddView>('menu')
+  const closeAdd = useCallback(() => setAddOpen(false), [])
+  // Other screens can open Quick add straight to a form (openQuickAdd('contact')).
+  useEffect(() => onOpenQuickAdd(view => { setAddView(view); setAddOpen(true) }), [])
+  // Phones: the bar shrinks to a circle while scrolling down (never while Quick add is open).
+  const { collapsed, expand } = useCollapsingNav(pathname, addOpen)
+  const current = navItems.find(item => pathname.startsWith(item.href))
+  const CurrentIcon = current?.icon ?? Menu
+
+  // Full-screen views (QR collect screen, Run of Show) have no app chrome.
+  if (FULL_SCREEN.test(pathname)) return <><BackgroundSync />{children}</>
+
+  return (
+    <ViewerProvider viewer={{ name: userName, photoPath: profilePhotoPath }}>
+    <BackgroundSync />
+    <div className="min-h-screen bg-bg pb-[calc(7rem+env(safe-area-inset-bottom))]">
+      {/* Top bar: the LS mark (the name is beside it as the product name) */}
+      <header className="sticky top-0 z-40 border-b border-border bg-bg/95 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
+          <Link href="/dashboard" className="flex shrink-0 items-center gap-2 whitespace-nowrap" aria-label="Speaker OS, go to the dashboard">
+            <Logo lockup="mark" height={28} className="h-7 w-7" />
+            <span className="text-title text-ink">Speaker OS</span>
+          </Link>
+          <div className="flex items-center gap-2.5">
+            {/* Universal search (Share QR codes moved into the profile menu) */}
+            <GlobalSearch />
+
+            {/* Only shows while blurring is on, so it's never forgotten. Tap to turn off. */}
+            {privacyMode && (
+              <button
+                type="button"
+                onClick={togglePrivacy}
+                className="flex h-9 items-center gap-1.5 rounded-full border-[1.5px] border-accent px-3 text-label text-accent transition-colors hover:bg-accent-tint"
+                title="Privacy mode is on. Tap to turn it off."
+              >
+                <EyeOff aria-hidden="true" className="h-4 w-4" strokeWidth={1.75} />
+                Hidden
+              </button>
+            )}
+
+            <AccountMenu userName={userName} photoPath={profilePhotoPath} />
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+
+      {/* Bottom nav: a floating, rounded bar. Two destinations each side of the
+          app's one main action, the gold hexagon, which opens the Quick add menu. */}
+      {/* Page content fades into the page color as it scrolls under the nav,
+          so the floating bar stands apart (logged exception in rebrand-decisions.md). */}
+      <div aria-hidden="true" data-collapsed={collapsed} className="nav-fade pointer-events-none fixed inset-x-0 bottom-0 z-40 h-[calc(140px+env(safe-area-inset-bottom))]" />
+
+      {/* Positions and sizes for both states live in globals.css (.app-nav,
+          .app-nav-add), keyed on data-collapsed. Never set them inline. */}
+      <nav
+        aria-label="Main"
+        data-collapsed={collapsed}
+        className="app-nav border border-control-border/40 bg-surface-raised"
+      >
+        <div className="app-nav__row grid grid-cols-[1fr_1fr_64px_1fr_1fr] items-center px-1">
+          {navItems.slice(0, 2).map(item => <NavLink key={item.href} item={item} active={item === current} />)}
+          {/* Space for the hexagon, which floats above the bar */}
+          <span aria-hidden="true" />
+          {navItems.slice(2).map(item => <NavLink key={item.href} item={item} active={item === current} />)}
+        </div>
+        {/* Collapsed: just the current page's icon, in the active tab's colours */}
+        <button
+          type="button"
+          onClick={expand}
+          tabIndex={collapsed ? 0 : -1}
+          aria-hidden={!collapsed}
+          aria-label="Show navigation"
+          className="app-nav__mini flex items-center justify-center rounded-full bg-accent/15 text-ink"
+        >
+          <CurrentIcon aria-hidden="true" className="h-[22px] w-[22px]" strokeWidth={1.75} />
+        </button>
+      </nav>
+
+      {/* The app's one main action. Stays visible while collapsed (slides to the
+          right edge); tapping it opens Quick add and expands the bar. */}
+      <button
+        type="button"
+        data-collapsed={collapsed}
+        onClick={() => {
+          expand()
+          setAddView('menu')
+          setAddOpen(v => !v)
+        }}
+        aria-haspopup="dialog"
+        aria-expanded={addOpen}
+        aria-label={addOpen ? 'Close Quick add' : 'Quick add'}
+        className="app-nav-add flex items-center justify-center rounded-brand-md active:scale-95"
+      >
+        <HexAddButton size={56} open={addOpen} label={addOpen ? 'Close Quick add' : 'Quick add'} />
+      </button>
+
+      <QuickAddMenu open={addOpen} onClose={closeAdd} initialView={addView} />
+    </div>
+    </ViewerProvider>
+  )
+}
+
+function NavLink({ item, active }: { item: (typeof navItems)[number]; active: boolean }) {
+  const Icon = item.icon
+  return (
+    <Link
+      href={item.href}
+      aria-label={item.label}
+      title={item.label}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        // The whole slot is the tap target; only a small pill behind the icon shows the current page
+        'group flex h-12 min-w-0 items-center justify-center transition-colors',
+        active ? 'text-ink' : 'text-ink-muted hover:text-ink',
+      )}
+    >
+      {/* Icons only; the name is the aria-label (and a tooltip on desktop) */}
+      <span
+        className={cn(
+          'relative flex h-9 w-12 items-center justify-center rounded-full transition-colors',
+          active ? 'bg-accent/15' : 'group-hover:bg-surface-sunken/60',
+        )}
+      >
+        {item.href === '/outreach' && <OutreachNavBadge />}
+        <Icon aria-hidden="true" className="h-[22px] w-[22px]" strokeWidth={1.75} />
+      </span>
+    </Link>
+  )
+}

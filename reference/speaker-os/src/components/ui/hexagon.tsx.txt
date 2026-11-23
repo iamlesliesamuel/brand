@@ -1,0 +1,252 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { cn } from '@/lib/utils'
+
+// The hexagon from docs/brand/BRAND.md. A hexagon always holds one meaningful
+// unit: a step, a point, a number, a completed item or a stage of progress.
+// Never decoration, never a photo or avatar frame, never near the logo, never
+// an ordinary button, card or container.
+//
+// States
+//   todo       Not yet: 2px control-border outline, empty
+//   done       accent fill with a check in bg
+//   numbered   accent fill with the number in bg (DM Sans semibold)
+//   marker     small solid accent hexagon, used as a bullet
+//   current    2px dashed highlight-text outline, the step someone is on now
+//   milestone  highlight fill with a 2px highlight-text edge, a real finish line only
+//
+// Gold stays rare: one solid gold element per screen at most.
+
+export type HexState = 'todo' | 'done' | 'numbered' | 'marker' | 'current' | 'milestone'
+
+// Pointy-top hexagon, width to height 8:9 (30 x 34 inside a 32 x 36 box,
+// leaving room for the stroke). Round joins soften the corners.
+const VIEW_W = 32
+const VIEW_H = 36
+const POINTS = '16,1 31,9.5 31,26.5 16,35 1,26.5 1,9.5'
+const CHECK = 'M9.5 18.5 L14 23 L22.5 13.5'
+
+function HexShape({
+  state,
+  size,
+  className,
+}: {
+  state: HexState
+  size: number
+  className?: string
+}) {
+  const height = Math.round((size * VIEW_H) / VIEW_W)
+
+  const shape = {
+    todo: { fill: 'none', stroke: 'var(--control-border)', dash: undefined },
+    done: { fill: 'var(--accent)', stroke: 'var(--accent)', dash: undefined },
+    numbered: { fill: 'var(--accent)', stroke: 'var(--accent)', dash: undefined },
+    marker: { fill: 'var(--accent)', stroke: 'var(--accent)', dash: undefined },
+    current: { fill: 'none', stroke: 'var(--highlight-text)', dash: '4 3' },
+    milestone: { fill: 'var(--highlight)', stroke: 'var(--highlight-text)', dash: undefined },
+  }[state]
+
+  return (
+    <svg
+      viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+      width={size}
+      height={height}
+      aria-hidden="true"
+      className={cn('block shrink-0', className)}
+    >
+      {/* Colors go in style, not fill/stroke attributes: var() in SVG
+          presentation attributes isn't reliable across browsers. */}
+      <polygon
+        points={POINTS}
+        style={{ fill: shape.fill, stroke: shape.stroke }}
+        strokeWidth={2}
+        strokeLinejoin="round"
+        strokeDasharray={shape.dash}
+        vectorEffect="non-scaling-stroke"
+      />
+      {state === 'done' && (
+        <path
+          d={CHECK}
+          style={{ fill: 'none', stroke: 'var(--bg)' }}
+          strokeWidth={3}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+    </svg>
+  )
+}
+
+/**
+ * A single hexagon. Pass `children` (usually a number) for the numbered state.
+ * `label` is read by screen readers, since the shape itself is decorative SVG.
+ */
+export function Hexagon({
+  state,
+  size = 28,
+  label,
+  children,
+  className,
+}: {
+  state: HexState
+  /** Width in px. Height follows at 8:9. */
+  size?: number
+  label?: string
+  children?: React.ReactNode
+  className?: string
+}) {
+  return (
+    <span
+      className={cn('relative inline-flex shrink-0 items-center justify-center', className)}
+      role={label ? 'img' : undefined}
+      aria-label={label}
+    >
+      <HexShape state={state} size={size} />
+      {children != null && (
+        <span
+          className="absolute inset-0 flex items-center justify-center font-semibold tabular-nums text-bg"
+          style={{ fontSize: Math.max(14, Math.round(size * 0.5)) }}
+          aria-hidden={label ? true : undefined}
+        >
+          {children}
+        </span>
+      )}
+    </span>
+  )
+}
+
+/** A hexagon bullet for lists that matter: outcomes, takeaways, next steps. */
+export function HexMarker({ className }: { className?: string }) {
+  return <HexShape state="marker" size={12} className={cn('mt-1.5', className)} />
+}
+
+/**
+ * Hexagon checkbox for checklists and task lists. Not yet / Done. The tap area
+ * is at least 44px square even though the shape is smaller.
+ */
+export function HexCheckbox({
+  checked,
+  onChange,
+  label,
+  disabled,
+  size = 24,
+  className,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  /** Accessible name, such as the task title. */
+  label: string
+  disabled?: boolean
+  size?: number
+  className?: string
+}) {
+  // A small pop when it turns done (only on the change, never on page load).
+  const [pop, setPop] = useState(false)
+  const was = useRef(checked)
+  useEffect(() => {
+    if (checked && !was.current) {
+      setPop(true)
+      const t = setTimeout(() => setPop(false), 400)
+      was.current = checked
+      return () => clearTimeout(t)
+    }
+    was.current = checked
+  }, [checked])
+
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-brand-sm',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+        'disabled:cursor-not-allowed disabled:opacity-50',
+        className,
+      )}
+    >
+      <HexShape state={checked ? 'done' : 'todo'} size={size} className={pop ? 'hex-pop' : undefined} />
+    </button>
+  )
+}
+
+/**
+ * A row of hexagons that fill in as someone moves forward: steps of a form,
+ * sessions completed, items done. `current` is the 0-based index of the step
+ * someone is on now; earlier ones show as done.
+ */
+export function HexProgress({
+  total,
+  current,
+  size = 20,
+  label,
+  className,
+}: {
+  total: number
+  current: number
+  size?: number
+  /** e.g. "Step 2 of 4" */
+  label: string
+  className?: string
+}) {
+  return (
+    <div role="img" aria-label={label} className={cn('flex items-center gap-2', className)}>
+      {Array.from({ length: total }, (_, i) => (
+        <HexShape key={i} size={size} state={i < current ? 'done' : i === current ? 'current' : 'todo'} />
+      ))}
+    </div>
+  )
+}
+
+/**
+ * The app's one main action (the Add button in the nav): a gold hexagon at
+ * least 56px across with a 3.5px plus, on a square tap area of at least 48px.
+ * One per app.
+ */
+export function HexAddButton({
+  label = 'Add',
+  size = 56,
+  open = false,
+  className,
+}: {
+  label?: string
+  size?: number
+  /** While its menu is open the plus turns into an X (rotated 45 degrees). */
+  open?: boolean
+  className?: string
+}) {
+  const height = Math.round((size * VIEW_H) / VIEW_W)
+  return (
+    <span
+      className={cn('relative inline-flex shrink-0 items-center justify-center', className)}
+      style={{ width: size, height }}
+    >
+      <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} width={size} height={height} aria-hidden="true" className="block">
+        <polygon
+          points={POINTS}
+          style={{ fill: 'var(--highlight)', stroke: 'var(--highlight)' }}
+          strokeWidth={2}
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+        <path
+          d="M16 11 V25 M9 18 H23"
+          style={{
+            stroke: 'var(--on-highlight)',
+            transform: open ? 'rotate(45deg)' : 'none',
+            transformOrigin: '16px 18px',
+            transition: 'transform 200ms ease',
+          }}
+          strokeWidth={3.5}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <span className="sr-only">{label}</span>
+    </span>
+  )
+}

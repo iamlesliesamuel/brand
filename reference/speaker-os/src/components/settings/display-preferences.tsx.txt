@@ -1,0 +1,74 @@
+'use client'
+
+import { useTheme, type ThemeMode } from '@/components/providers/theme-provider'
+import { usePrivacy } from '@/components/providers/privacy-provider'
+
+const MODES: { value: ThemeMode; label: string }[] = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'Auto' },
+]
+
+/** Light / Dark / Auto picker. Auto follows the phone or computer setting. */
+export function AppearancePicker() {
+  const { mode, setMode } = useTheme()
+  return (
+    <div role="radiogroup" aria-label="Appearance" className="grid grid-cols-3 gap-1 rounded-brand-md border border-border bg-surface-sunken p-1">
+      {MODES.map(m => {
+        const active = mode === m.value
+        return (
+          <button
+            key={m.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => setMode(m.value)}
+            className={[
+              'rounded-brand-sm border py-1.5 text-label font-semibold transition-colors',
+              active ? 'border-control-border bg-surface text-ink' : 'border-transparent text-ink-muted hover:text-ink',
+            ].join(' ')}
+          >
+            {m.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** "Privacy mode": on/off switch for blurring money and contact details. */
+export function HideMoneySwitch({ withDescription = false }: { withDescription?: boolean }) {
+  const { privacyMode, togglePrivacy } = usePrivacy()
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={privacyMode}
+      onClick={togglePrivacy}
+      className="flex w-full items-center justify-between gap-3 text-left"
+    >
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-ink">Privacy mode</span>
+        {withDescription && (
+          <span className="mt-0.5 block text-caption text-ink-muted">
+            Blurs fees, payments, emails and phone numbers. Handy when you’re showing your screen.
+          </span>
+        )}
+      </span>
+      <span
+        aria-hidden
+        className={[
+          'relative h-6 w-11 shrink-0 rounded-full transition-colors',
+          privacyMode ? 'bg-accent' : 'bg-border',
+        ].join(' ')}
+      >
+        <span
+          className={[
+            'absolute top-0.5 h-5 w-5 rounded-full bg-surface transition-all',
+            privacyMode ? 'left-[22px]' : 'left-0.5',
+          ].join(' ')}
+        />
+      </span>
+    </button>
+  )
+}

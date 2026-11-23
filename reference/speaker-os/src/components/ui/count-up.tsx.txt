@@ -1,0 +1,69 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { Currency } from '@/components/ui/currency'
+
+/**
+ * Numbers that settle into place: they count up when a page opens inside the
+ * app, and glide to the new value when it changes (switching years). On the
+ * very first page load the server already painted the final number, so it
+ * stays put there (animating from zero would flash it). Off under
+ * prefers-reduced-motion.
+ */
+
+// Set once any count-up has hydrated: after that, new ones mount on the client
+// only (client navigation) and can safely start from zero without a mismatch.
+let appHydrated = false
+
+const DURATION = 700
+const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
+
+function reducedMotion() {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+}
+
+export function useCountUp(target: number): number {
+  const [value, setValue] = useState(() => (appHydrated && !reducedMotion() ? 0 : target))
+  const from = useRef(value)
+  const frame = useRef<number | null>(null)
+
+  useEffect(() => {
+    appHydrated = true
+  }, [])
+
+  useEffect(() => {
+    if (reducedMotion() || from.current === target) {
+      from.current = target
+      setValue(target)
+      return
+    }
+    const start = performance.now()
+    const begin = from.current
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / DURATION)
+      const v = begin + (target - begin) * easeOut(t)
+      from.current = v
+      setValue(v)
+      if (t < 1) frame.current = requestAnimationFrame(tick)
+      else from.current = target
+    }
+    frame.current = requestAnimationFrame(tick)
+    return () => {
+      if (frame.current !== null) cancelAnimationFrame(frame.current)
+    }
+  }, [target])
+
+  return value
+}
+
+/** Money that counts up; still blurred in privacy mode (it renders <Currency>). */
+export function CountUpCurrency({ amount, className }: { amount: number; className?: string }) {
+  const v = useCountUp(amount)
+  return <Currency amount={Math.round(v)} className={className} />
+}
+
+/** A whole number that counts up. */
+export function CountUpNumber({ value }: { value: number }) {
+  const v = useCountUp(value)
+  return <>{Math.round(v)}</>
+}

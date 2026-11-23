@@ -1,0 +1,40 @@
+'use client'
+
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { eventPhotoName, isPlainClick, navigateWithTransition } from '@/lib/view-transition'
+
+/**
+ * A link to an event whose photo grows into the event page's cover (the
+ * tapped card's photo gets the shared name on tap). A normal link when transitions aren't available.
+ */
+export function EventPhotoLink({
+  eventId,
+  className,
+  children,
+  ...rest
+}: {
+  eventId: string
+  className?: string
+  children: React.ReactNode
+  'aria-label'?: string
+}) {
+  const router = useRouter()
+  const href = `/opportunities/${eventId}`
+  return (
+    <Link
+      href={href}
+      className={className}
+      {...rest}
+      onClick={e => {
+        if (e.defaultPrevented || !isPlainClick(e)) return
+        // The card's photo: inside the link, or (a full-card overlay link) beside it.
+        const photo = e.currentTarget.querySelector('img') ?? e.currentTarget.parentElement?.querySelector('img') ?? null
+        if (!photo) return
+        if (navigateWithTransition(() => router.push(href), photo, eventPhotoName(eventId))) e.preventDefault()
+      }}
+    >
+      {children}
+    </Link>
+  )
+}

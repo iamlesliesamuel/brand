@@ -1,0 +1,55 @@
+/**
+ * Event photo transitions: tap an event card and its photo grows into the
+ * event page's cover. Uses the browser's View Transitions API (Safari 18+,
+ * Chrome): the old screen is held as a snapshot until the new page's cover
+ * mounts (EventCoverPhoto calls transitionTargetReady), then both animate.
+ * Never more than MAX_WAIT on a frozen screen; skipped without support or
+ * under prefers-reduced-motion, where it's a plain navigation.
+ */
+
+const MAX_WAIT = 1200
+let pending: (() => void) | null = null
+
+type DocWithVT = Document & { startViewTransition?: (cb: () => Promise<void>) => unknown }
+
+function canTransition(): boolean {
+  if (typeof document === 'undefined') return false
+  if (!(document as DocWithVT).startViewTransition) return false
+  return !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+}
+
+/** The name shared by a card's photo and the event page's cover. */
+export const eventPhotoName = (id: string) => `event-photo-${id}`
+
+/** A plain left click (not a new tab or window), which we may animate. */
+export function isPlainClick(e: { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean }) {
+  return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
+}
+
+/**
+ * `photo` is the tapped card's image: only it gets the shared name, at the
+ * moment of the tap. (Naming every card up front lifts all their photos out
+ * of the page while the transition runs.)
+ */
+export function navigateWithTransition(go: () => void, photo?: Element | null, name?: string): boolean {
+  if (!canTransition()) return false
+  if (photo instanceof HTMLElement && name) photo.style.viewTransitionName = name
+  ;(document as DocWithVT).startViewTransition!(
+    () =>
+      new Promise<void>(resolve => {
+        const done = () => {
+          if (pending === done) pending = null
+          resolve()
+        }
+        pending = done
+        go()
+        setTimeout(done, MAX_WAIT)
+      }),
+  )
+  return true
+}
+
+/** Called by the destination once its photo is in the DOM. */
+export function transitionTargetReady() {
+  pending?.()
+}

@@ -1,0 +1,21 @@
+import { getCurrentAccount } from '@/features/auth/actions'
+import { getUserProfile } from '@/features/auth/profile-actions'
+import { AppShell } from '@/components/layout/app-shell'
+
+/**
+ * One header + bottom nav for every signed-in page. Layouts stay mounted
+ * across client navigations, so tapping a link only swaps the page content:
+ * the chrome never disappears, and its badge and sync run once, not per page.
+ * URLs are unchanged: (app) is a route group.
+ */
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const ctx = await getCurrentAccount()
+  // Pages handle their own redirect when there's no account; render bare here.
+  if (!ctx) return <>{children}</>
+  const profile = await getUserProfile()
+  return (
+    <AppShell userName={ctx.name} profilePhotoPath={profile?.photo_path ?? null}>
+      {children}
+    </AppShell>
+  )
+}

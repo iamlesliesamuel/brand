@@ -1,0 +1,254 @@
+'use client'
+
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+
+/** One row in the dropdown. */
+export interface AutocompleteOption<T = unknown> {
+  /** Text written into the input when this row is picked. */
+  value: string
+  /** Secondary line under the value — e.g. "VP Marketing · Acme Corp". */
+  hint?: string | null
+  /** Right-aligned meta — e.g. "3 events". */
+  meta?: string | null
+  /** The full record, handed back through onPick so a pick can fill siblings. */
+  data?: T
+}
+
+interface AutocompleteInputProps<T> {
+  value: string
+  onChange: (value: string) => void
+  options: AutocompleteOption<T>[]
+  /**
+   * Called instead of onChange when a suggestion is picked. When provided it
+   * owns the whole update — set the field itself, plus any sibling fields you
+   * want filled from `option.data`.
+   */
+  onPick?: (option: AutocompleteOption<T>) => void
+  /** Show the most-used values when the field is focused while empty. */
+  showOnFocus?: boolean
+  /** Max rows in the dropdown. */
+  limit?: number
+  /** Classes for the positioning wrapper (the dropdown anchors to it). */
+  wrapperClassName?: string
+
+  // Passed straight through to the <input>.
+  className?: string
+  placeholder?: string
+  'aria-label'?: string
+  type?: 'text' | 'email' | 'tel' | 'url'
+  required?: boolean
+  autoFocus?: boolean
+  disabled?: boolean
+  maxLength?: number
+  name?: string
+  inputMode?: 'text' | 'email' | 'tel' | 'url'
+  style?: React.CSSProperties
+  onBlur?: () => void
+  inputRef?: React.RefObject<HTMLInputElement>
+}
+
+/** Lower score = better match. `null` means "doesn't match at all". */
+function score(option: AutocompleteOption<unknown>, query: string): number | null {
+  if (!query) return 0
+  const value = option.value.toLowerCase()
+  if (value.startsWith(query)) return 0
+  const words = value.split(/[\s,./|_-]+/)
+  if (words.some(word => word.startsWith(query))) return 1
+  if (value.includes(query)) return 2
+  if ((option.hint ?? '').toLowerCase().includes(query)) return 3
+  return null
+}
+
+/** Splits a label into [before, match, after] so the typed part can be bolded. */
+function highlight(label: string, query: string) {
+  if (!query) return [label, '', '']
+  const at = label.toLowerCase().indexOf(query)
+  if (at < 0) return [label, '', '']
+  return [label.slice(0, at), label.slice(at, at + query.length), label.slice(at + query.length)]
+}
+
+/**
+ * A text input that suggests values the account has entered before.
+ *
+ * Filters as you type, ranks prefix matches first, and falls back to the
+ * most-used values when focused while empty. Keyboard: ↑/↓ to move, Enter to
+ * pick, Esc to dismiss.
+ */
+export function AutocompleteInput<T = unknown>({
+  value,
+  onChange,
+  options,
+  onPick,
+  showOnFocus = true,
+  limit = 8,
+  wrapperClassName = '',
+  className = '',
+  placeholder,
+  'aria-label': ariaLabel,
+  type = 'text',
+  required,
+  autoFocus,
+  disabled,
+  maxLength,
+  name,
+  inputMode,
+  style,
+  onBlur,
+  inputRef,
+}: AutocompleteInputProps<T>) {
+  const listId = useId()
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(0)
+
+  const query = value.trim().toLowerCase()
+
+  const matches = useMemo(() => {
+    if (!query && !showOnFocus) return []
+    const scored: { option: AutocompleteOption<T>; rank: number; order: number }[] = []
+    options.forEach((option, order) => {
+      const rank = score(option, query)
+      if (rank !== null) scored.push({ option, rank, order })
+    })
+    scored.sort((a, b) => a.rank - b.rank || a.order - b.order)
+    const top = scored.slice(0, limit).map(entry => entry.option)
+    // Nothing to offer if the only suggestion is what's already typed.
+    if (top.length === 1 && top[0].value.toLowerCase() === query) return []
+    return top
+  }, [options, query, limit, showOnFocus])
+
+  // Tapping/clicking outside closes the dropdown.
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(event: MouseEvent | TouchEvent) {
+      if (!wrapperRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('touchstart', onPointerDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('touchstart', onPointerDown)
+    }
+  }, [open])
+
+  const visible = open && matches.length > 0
+
+  function select(option: AutocompleteOption<T>) {
+    if (onPick) onPick(option)
+    else onChange(option.value)
+    setOpen(false)
+    setActive(0)
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Escape') {
+      setOpen(false)
+      return
+    }
+    if (event.key === 'ArrowDown' && !visible) {
+      setOpen(true)
+      setActive(0)
+      return
+    }
+    if (!visible) return
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      setActive(prev => (prev + 1) % matches.length)
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      setActive(prev => (prev - 1 + matches.length) % matches.length)
+    } else if (event.key === 'Enter') {
+      // Don't submit the form — the user is choosing a suggestion.
+      event.preventDefault()
+      select(matches[active])
+    } else if (event.key === 'Tab') {
+      setOpen(false)
+    }
+  }
+
+  return (
+    <div ref={wrapperRef} className={`relative ${wrapperClassName}`}>
+      <input
+        ref={inputRef}
+        type={type}
+        value={value}
+        onChange={event => {
+          onChange(event.target.value)
+          setOpen(true)
+          setActive(0)
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={onBlur}
+        onKeyDown={handleKeyDown}
+        className={className}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        required={required}
+        autoFocus={autoFocus}
+        disabled={disabled}
+        maxLength={maxLength}
+        name={name}
+        inputMode={inputMode}
+        style={style}
+        autoComplete="off"
+        role="combobox"
+        aria-expanded={visible}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-activedescendant={visible ? `${listId}-${active}` : undefined}
+      />
+
+      {visible && (
+        <ul
+          id={listId}
+          role="listbox"
+          className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 overflow-y-auto overscroll-contain rounded-brand-md border border-control-border bg-surface py-1"
+        >
+          {matches.map((option, index) => {
+            const [before, match, after] = highlight(option.value, query)
+            return (
+              <li key={`${option.value}-${index}`}>
+                <button
+                  id={`${listId}-${index}`}
+                  type="button"
+                  role="option"
+                  aria-selected={index === active}
+                  // Keep focus in the input so blur doesn't fire before the click.
+                  onMouseDown={event => event.preventDefault()}
+                  onMouseEnter={() => setActive(index)}
+                  onClick={() => select(option)}
+                  className={[
+                    'flex w-full items-center gap-2 px-3 py-2 text-left transition-colors',
+                    index === active ? 'bg-accent-tint' : 'hover:bg-accent-tint',
+                  ].join(' ')}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] text-ink">
+                      {before}
+                      <span className="font-semibold text-accent">{match}</span>
+                      {after}
+                    </span>
+                    {option.hint && (
+                      <span className="block truncate text-caption text-ink-muted">{option.hint}</span>
+                    )}
+                  </span>
+                  {option.meta && (
+                    <span className="shrink-0 text-caption text-ink-muted">
+                      {option.meta}
+                    </span>
+                  )}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+/** Turns a plain list of past values into dropdown rows. */
+export function toOptions(values: string[]): AutocompleteOption<string>[] {
+  return values.map(value => ({ value, data: value }))
+}

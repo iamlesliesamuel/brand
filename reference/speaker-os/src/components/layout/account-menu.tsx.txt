@@ -1,0 +1,160 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { LogOut, QrCode, Settings } from 'lucide-react'
+import { cn, storageUrl } from '@/lib/utils'
+import { clearCachedPages } from '@/lib/pwa/page-cache'
+import { logout } from '@/features/auth/actions'
+import { AppearancePicker, HideMoneySwitch } from '@/components/settings/display-preferences'
+
+function Avatar({ userName, photoPath, size }: { userName: string; photoPath: string | null; size: number }) {
+  const url = storageUrl(photoPath)
+  return (
+    <span
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-accent bg-accent-tint"
+      style={{ width: size, height: size }}
+    >
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span className="text-caption font-bold text-accent">{(userName || '?').trim()[0]?.toUpperCase()}</span>
+      )}
+    </span>
+  )
+}
+
+function MenuLink({ href, icon, label, onNavigate }: { href: string; icon: React.ReactNode; label: string; onNavigate: () => void }) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className="flex items-center gap-3 rounded-brand-sm px-3 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-sunken"
+    >
+      <span className="text-ink-muted">{icon}</span>
+      {label}
+    </Link>
+  )
+}
+
+const iconCls = 'h-[18px] w-[18px]'
+
+const icons = {
+  qr: <QrCode aria-hidden="true" className={iconCls} strokeWidth={1.75} />,
+  gear: <Settings aria-hidden="true" className={iconCls} strokeWidth={1.75} />,
+  out: <LogOut aria-hidden="true" className={iconCls} strokeWidth={1.75} />,
+}
+
+/**
+ * Everything that isn't a daily destination lives behind the profile photo:
+ * profile, Share QR codes, library pages, display preferences, settings, sign out.
+ */
+export function AccountMenu({ userName, photoPath }: { userName: string; photoPath: string | null }) {
+  const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => setMounted(true), [])
+  const pathname = usePathname()
+
+  // Close on route change, outside tap, or Escape.
+  useEffect(() => setOpen(false), [pathname])
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('touchstart', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('touchstart', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const close = () => setOpen(false)
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Account menu"
+        className="flex items-center rounded-full transition-colors hover:ring-2 hover:ring-accent"
+      >
+        <Avatar userName={userName} photoPath={photoPath} size={34} />
+      </button>
+
+      {/* Dims the page like Quick add does. Portaled to <body>: the header's
+          backdrop-blur would otherwise trap a fixed element inside it. Taps
+          on it close the menu through the outside-tap listener. */}
+      {mounted && createPortal(
+        <div
+          aria-hidden="true"
+          className={cn(
+            'fixed inset-0 z-[39] bg-band/60 transition-opacity duration-200 motion-reduce:transition-none',
+            open ? 'opacity-100' : 'pointer-events-none opacity-0',
+          )}
+        />,
+        document.body,
+      )}
+
+      {/* Always mounted so it can slide: down from under the photo when it
+          opens (300ms ease-out, like the Quick add sheet sliding up), back up
+          when it closes. inert keeps the hidden menu out of the tab order. */}
+      <div
+          role="menu"
+          {...(!open ? { inert: '' as unknown as boolean } : {})}
+          aria-hidden={!open}
+          className={cn(
+            'absolute right-0 top-[calc(100%+10px)] z-50 w-[min(19rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-brand-md border border-control-border bg-surface',
+            'transition-[transform,opacity,visibility] duration-300 ease-out motion-reduce:transition-none',
+            open ? 'visible translate-y-0 scale-100 opacity-100' : 'invisible -translate-y-4 scale-95 opacity-0 duration-200 ease-in',
+          )}
+        >
+          {/* Who's signed in */}
+          <Link href="/profile" onClick={close} className="flex items-center gap-3 border-b border-border p-4 transition-colors hover:bg-surface-sunken">
+            <Avatar userName={userName} photoPath={photoPath} size={42} />
+            <span className="min-w-0">
+              <span className="block truncate text-[15px] font-bold text-ink">{userName}</span>
+              <span className="block text-caption text-accent">View profile</span>
+            </span>
+          </Link>
+
+          <div className="p-2">
+            {/* Only things about you. Places in the app (Revenue, Testimonials,
+                Invoices, Talks, Year on stage) are dashboard shortcuts. */}
+            <MenuLink href="/share" icon={icons.qr} label="Share my QR codes" onNavigate={close} />
+          </div>
+
+          <div className="space-y-3 border-t border-border p-4">
+            <div className="space-y-1.5">
+              <p className="text-label text-ink-muted">Appearance</p>
+              <AppearancePicker />
+            </div>
+            <HideMoneySwitch />
+          </div>
+
+          <div className="border-t border-border p-2">
+            <MenuLink href="/settings" icon={icons.gear} label="Settings" onNavigate={close} />
+            <form action={logout} onSubmit={clearCachedPages}>
+              <button
+                type="submit"
+                className="flex w-full items-center gap-3 rounded-brand-sm px-3 py-2.5 text-sm font-semibold text-ink-muted transition-colors hover:bg-surface-sunken hover:text-danger"
+              >
+                <span>{icons.out}</span>
+                Sign out
+              </button>
+            </form>
+          </div>
+        </div>
+    </div>
+  )
+}

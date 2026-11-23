@@ -1,0 +1,62 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { Award, CalendarRange, FileText, MessageSquareQuote, Mic, QrCode, Wallet, type LucideIcon } from 'lucide-react'
+
+/**
+ * Shortcuts under the dashboard greeting: the places you go every so often
+ * (daily work stays in the bottom tabs). One sideways row of tiles, ordered by
+ * how often they're used; the half-visible last tile says it scrolls. Brand
+ * version of the Uber-style row: a soft accent-tint square with one accent
+ * outline icon and a short label, no borders, no illustrations, no gold. Year on stage moves to the front in December and
+ * January, when looking back matters.
+ */
+
+interface Shortcut {
+  href: string
+  label: string
+  icon: LucideIcon
+  key: string
+}
+
+const SHORTCUTS: Shortcut[] = [
+  { key: 'revenue', href: '/revenue', label: 'Revenue', icon: Wallet },
+  { key: 'testimonials', href: '/testimonials', label: 'Reviews', icon: MessageSquareQuote },
+  { key: 'calendar', href: '/pipeline?view=calendar', label: 'Calendar', icon: CalendarRange },
+  { key: 'invoices', href: '/invoices', label: 'Invoices', icon: FileText },
+  { key: 'share', href: '/share', label: 'Share QR', icon: QrCode },
+  { key: 'talks', href: '/talks', label: 'Talks', icon: Mic },
+  { key: 'year', href: '/year', label: 'My year', icon: Award },
+]
+
+export function DashboardShortcuts() {
+  // Decided after mount (the viewer's month), so the server render is the
+  // default order and nothing disagrees on hydration.
+  const [yearFirst, setYearFirst] = useState(false)
+  useEffect(() => {
+    const m = new Date().getMonth()
+    setYearFirst(m === 11 || m === 0)
+  }, [])
+  const items = yearFirst
+    ? [SHORTCUTS[SHORTCUTS.length - 1], ...SHORTCUTS.slice(0, -1)]
+    : SHORTCUTS
+
+  // Icons: a soft accent square per place, no border, label tight underneath.
+  return (
+    <nav aria-label="Shortcuts">
+      <ul className="-mx-4 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {items.map(({ key, href, label, icon: Icon }) => (
+          <li key={key} className="w-[72px] shrink-0">
+            <Link href={href} className="group flex flex-col items-center gap-1 text-center">
+              <span className="flex h-[52px] w-[52px] items-center justify-center rounded-brand-lg bg-accent-tint transition-transform group-active:scale-95 motion-reduce:group-active:scale-100">
+                <Icon aria-hidden="true" className="h-[26px] w-[26px] text-accent" strokeWidth={1.75} />
+              </span>
+              <span className="truncate text-caption font-medium text-ink">{label}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}

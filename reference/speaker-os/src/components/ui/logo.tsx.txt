@@ -1,0 +1,79 @@
+import { cn } from '@/lib/utils'
+
+// The supplied logo files in public/brand/ (docs/brand/BRAND.md, "The logo").
+// Never redraw, recolor or stretch them; this only picks the right file.
+//
+// lockup     horizontal: wide, short spaces (the band header)
+//            stacked: square spaces
+//            mark: the LS mark alone, when the name is already nearby
+// background what sits behind it. 'auto' (the default) follows the nearest
+//            theme: the light-background file in light, the dark-background
+//            file in dark. Pass 'dark' on the band or a dark photo, which are
+//            dark in both themes, and 'light' on something always light.
+//
+// Minimum sizes: horizontal 140px wide, stacked 96px wide, mark 16px.
+
+type Lockup = 'horizontal' | 'stacked' | 'mark'
+type Background = 'dark' | 'light'
+type BackgroundProp = Background | 'auto'
+
+const FILES: Record<Lockup, Record<Background, string>> = {
+  horizontal: {
+    dark: '/brand/leslie-samuel-horizontal-transparent-for-dark-backgrounds.svg',
+    light: '/brand/leslie-samuel-horizontal-transparent-for-light-backgrounds.svg',
+  },
+  stacked: {
+    dark: '/brand/leslie-samuel-stacked-transparent-for-dark-backgrounds.svg',
+    light: '/brand/leslie-samuel-stacked-transparent-for-light-backgrounds.svg',
+  },
+  mark: {
+    dark: '/brand/ls-mark-for-dark-backgrounds.svg',
+    light: '/brand/ls-mark-for-light-backgrounds.svg',
+  },
+}
+
+// Intrinsic aspect ratios (width / height) from each file's viewBox.
+const RATIO: Record<Lockup, number> = {
+  horizontal: 957.3 / 176.2,
+  stacked: 568.63 / 292.05,
+  mark: 1,
+}
+
+export function Logo({
+  lockup = 'horizontal',
+  background = 'auto',
+  height,
+  className,
+}: {
+  lockup?: Lockup
+  background?: BackgroundProp
+  /** Rendered height in px. Width follows the file's proportions. */
+  height: number
+  className?: string
+}) {
+  const width = Math.round(height * RATIO[lockup])
+  const img = (bg: Background, extra?: React.CSSProperties) => (
+    // A plain <img>: SVGs gain nothing from next/image, and this keeps the
+    // file exactly as supplied.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      key={bg}
+      src={FILES[lockup][bg]}
+      alt="Leslie Samuel"
+      width={width}
+      height={height}
+      className={cn('block shrink-0', className)}
+      style={extra}
+    />
+  )
+  if (background !== 'auto') return img(background)
+  // Both files are rendered and the theme picks one. --logo-on-light and
+  // --logo-on-dark are set per [data-theme] in src/brand/brand.css, so a
+  // wrapper that forces a theme (the client report) gets the right file too.
+  return (
+    <>
+      {img('light', { display: 'var(--logo-on-light, block)' })}
+      {img('dark', { display: 'var(--logo-on-dark, none)' })}
+    </>
+  )
+}

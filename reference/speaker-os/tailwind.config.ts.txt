@@ -1,0 +1,31 @@
+import type { Config } from "tailwindcss";
+import { brandTheme } from "./src/brand/tailwind";
+
+const config: Config = {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/features/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      // Brand type scale (text-display-lg, text-heading, text-body, ...).
+      // xs and sm stay for older code: xs is the brand's 14px floor, sm 15px.
+      fontSize: {
+        ...brandTheme.fontSize,
+        xs: ["14px", { lineHeight: "20px" }],
+        sm: ["15px", { lineHeight: "22px" }],
+      },
+      fontFamily: brandTheme.fontFamily,
+      borderRadius: brandTheme.borderRadius,
+      colors: {
+        // Brand colors are functions (opacity modifiers via color-mix); Tailwind supports
+        // that at runtime but its types only describe strings.
+        ...(brandTheme.colors as unknown as Record<string, string>),
+      },
+    },
+  },
+  plugins: [],
+};
+export default config;

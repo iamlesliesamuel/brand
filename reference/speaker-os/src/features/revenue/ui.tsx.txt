@@ -1,0 +1,171 @@
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { usePrivacy } from '@/components/providers/privacy-provider'
+import { cn, localDateStr } from '@/lib/utils'
+import { Currency } from '@/components/ui/currency'
+import { availableYears, describeChange, periodLabel, type Bar, type Period, type RevenueInput } from './model'
+
+/**
+ * Period state shared by the dashboard card and the Revenue page. "Today"
+ * starts as the server's date and switches to the viewer's local date after
+ * mount (no hydration mismatch; matters only around midnight).
+ */
+export function useRevenuePeriod(input: RevenueInput, initial?: Period) {
+  const [today, setToday] = useState(input.today)
+  useEffect(() => setToday(localDateStr()), [])
+  const data = useMemo(() => ({ ...input, today }), [input, today])
+  const currentYear = Number(today.slice(0, 4))
+  const [period, setPeriod] = useState<Period>(initial ?? { kind: 'year', year: Number(input.today.slice(0, 4)) })
+  const years = useMemo(() => availableYears(data), [data])
+  return { data, period, setPeriod, years, currentYear }
+}
+
+/** ‹ 2026 › plus All time. Arrows step through the years that have data (always this year and next). */
+export function PeriodSwitcher({
+  period,
+  years,
+  currentYear,
+  onChange,
+  compact = false,
+}: {
+  period: Period
+  years: number[]
+  currentYear: number
+  onChange: (p: Period) => void
+  compact?: boolean
+}) {
+  const year = period.kind === 'year' ? period.year : null
+  const idx = year === null ? -1 : years.indexOf(year)
+  const step = (d: number) => {
+    if (year === null) return onChange({ kind: 'year', year: currentYear })
+    const next = years[idx + d]
+    if (next !== undefined) onChange({ kind: 'year', year: next })
+  }
+  const btn = 'flex h-9 w-9 items-center justify-center rounded-full text-ink transition-colors hover:bg-surface-sunken disabled:pointer-events-none disabled:opacity-30'
+  return (
+    <div className="flex items-center gap-1" role="group" aria-label="Revenue period">
+      <button type="button" className={btn} onClick={() => step(-1)} disabled={year !== null && idx <= 0} aria-label="Previous year">
+        <ChevronLeft aria-hidden="true" className="h-5 w-5" strokeWidth={1.75} />
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange({ kind: 'year', year: currentYear })}
+        className={cn('min-w-[56px] rounded-full px-2 py-1 text-center text-body-sm font-semibold tabular-nums text-ink', year === null && 'text-ink-muted')}
+        title="Back to this year"
+      >
+        {year ?? currentYear}
+      </button>
+      <button type="button" className={btn} onClick={() => step(1)} disabled={year !== null && idx >= years.length - 1} aria-label="Next year">
+        <ChevronRight aria-hidden="true" className="h-5 w-5" strokeWidth={1.75} />
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange(period.kind === 'all' ? { kind: 'year', year: currentYear } : { kind: 'all' })}
+        aria-pressed={period.kind === 'all'}
+        className={cn(
+          'ml-1 whitespace-nowrap rounded-full border px-3 py-1.5 text-label font-semibold transition-colors',
+          period.kind === 'all' ? 'border-accent bg-accent-tint text-accent' : 'border-control-border text-ink hover:bg-surface-sunken',
+          compact && 'px-2.5',
+        )}
+      >
+        All time
+      </button>
+    </div>
+  )
+}
+
+/** "this year", "2025", "all time": for sentences. */
+export function periodPhrase(p: Period, currentYear: number) {
+  if (p.kind === 'all') return 'all time'
+  return p.year === currentYear ? `this year (${p.year})` : periodLabel(p)
+}
+
+function niceUpperBound(val: number) {
+  if (val <= 0) return 1000
+  const magnitude = Math.pow(10, Math.floor(Math.log10(val)))
+  const n = val / magnitude
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * magnitude
+}
+function fmtK(val: number) {
+  if (val === 0) return '$0'
+  if (val >= 1000) {
+    const k = val / 1000
+    return `$${Number.isInteger(k) ? k : k.toFixed(1)}k`
+  }
+  return `$${val}`
+}
+
+/**
+ * Booked (outlined) vs collected (solid) per month or per year. Plain HTML so
+ * labels stay 14px on phones; one accent color, told apart by fill.
+ */
+export function RevenueChart({ bars }: { bars: Bar[] }) {
+  const { privacyMode } = usePrivacy()
+  const max = niceUpperBound(Math.max(...bars.flatMap(b => [b.booked, b.collected]), 1))
+  const H = 140
+  const pct = (v: number) => `max(3px, ${(v / max) * 100}%)`
+  const cols = { gridTemplateColumns: `repeat(${bars.length}, minmax(0, 1fr))` }
+  return (
+    <div>
+      <div className={privacyMode ? 'select-none blur-[5px]' : ''} aria-hidden>
+        <div className="flex gap-2 pt-2.5">
+          <div className="relative w-12 shrink-0" style={{ height: H }}>
+            {[0, 0.5, 1].map(f => (
+              <span key={f} className="absolute right-0 -translate-y-1/2 text-caption tabular-nums text-ink-muted" style={{ top: `${(1 - f) * 100}%` }}>
+                {fmtK(Math.round(max * f))}
+              </span>
+            ))}
+          </div>
+          <div className="relative min-w-0 flex-1" style={{ height: H }}>
+            {[0, 0.5, 1].map(f => (
+              <div key={f} className="absolute inset-x-0 border-t border-border" style={{ top: `${(1 - f) * 100}%` }} />
+            ))}
+            <div className="absolute inset-0 grid" style={cols}>
+              {bars.map(b => (
+                <div key={b.label} className="flex h-full items-end justify-center gap-[2px] px-[12%]" title={b.label}>
+                  <div className="flex h-full w-1/2 max-w-[14px] items-end">
+                    {b.booked > 0 && <div className="w-full rounded-t-sm border border-accent bg-accent-tint" style={{ height: pct(b.booked) }} />}
+                  </div>
+                  <div className="flex h-full w-1/2 max-w-[14px] items-end">
+                    {b.collected > 0 && <div className="w-full rounded-t-sm bg-accent" style={{ height: pct(b.collected) }} />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="mt-1 flex gap-2">
+          <div className="w-12 shrink-0" />
+          <div className="grid min-w-0 flex-1 text-center text-caption text-ink-muted" style={cols}>
+            {bars.map(b => (
+              <span key={b.label}>
+                <span className={bars.length > 6 ? 'sm:hidden' : 'hidden'}>{b.short}</span>
+                <span className={bars.length > 6 ? 'hidden sm:inline' : ''}>{b.label}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-2 flex items-center justify-center gap-5">
+        <span className="flex items-center gap-1.5 text-caption text-ink-muted">
+          <span className="inline-block h-3 w-3 rounded-sm border border-accent bg-accent-tint" />
+          Booked
+        </span>
+        <span className="flex items-center gap-1.5 text-caption text-ink-muted">
+          <span className="inline-block h-3 w-3 rounded-sm bg-accent" />
+          Collected
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/** " · up 12% on 2025", or " · $2,500 in 2025" when a percentage would be silly. */
+export function ChangeNote({ current, previous, year }: { current: number; previous: number; year: number }) {
+  const c = describeChange(current, previous)
+  if (!c) return null
+  if (c.kind === 'pct') return <> · {c.up ? 'up' : 'down'} {c.pct}% on {year}</>
+  return <> · <Currency amount={c.amount} /> in {year}</>
+}
