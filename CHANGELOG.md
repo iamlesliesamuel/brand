@@ -2,6 +2,14 @@
 
 Newest first. Each entry says what changed and what an app needs to do about it.
 
+## 2026-11-23 (second update): full-bleed app icons, two motion rules
+
+Found by the first Speaker OS sync.
+
+- **App icons:** `assets/app-icons/ls-app-icon-512.png` and `apple-touch-icon-180.png` had rounded, see-through corners, which show up black on iPhone. They're now full-bleed squares, matching Speaker OS. `assets/app-icons/README.md` says which file is for what. **Apps:** use the full-bleed files for the manifest, `apple-touch-icon` and favicons. Speaker OS already does; nothing to change there.
+- **Motion:** a centered modal on desktop rises 16px and fades in over 300ms ease-out; on phones the same modal is a bottom sheet. Autocomplete suggestion lists appear instantly. Both are now in BRAND.md's Motion section. **Apps:** follow these when making overlays animate.
+- **Exceptions file:** apps log deliberate exceptions in `docs/brand/decisions.md`. **Speaker OS:** rename `docs/brand/rebrand-decisions.md` to that and update its references.
+
 ## 2026-11-23: the kit is created
 
 The first version of the brand kit, built from the brand guide and from what shipped in Speaker OS.

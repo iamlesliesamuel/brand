@@ -370,6 +370,7 @@ Motion is quick, quiet and functional. It shows where something came from and th
 |---|---|---|---|
 | A sheet opens or closes | Slides up from the bottom (or back down) | 300ms | ease-out, `cubic-bezier(0, 0, 0.2, 1)` |
 | A menu opens | Drops 16px and grows from 95% to full size, fading in, from the corner nearest its trigger | 300ms | ease-out |
+| A centered modal opens (desktop) | Rises 16px and fades in. On phones the same modal is a bottom sheet and slides up. | 300ms | ease-out |
 | A menu closes | The reverse, faster | 200ms | ease-in, `cubic-bezier(0.4, 0, 1, 1)` |
 | A backdrop appears or goes | Fades | 200ms | `cubic-bezier(0.4, 0, 0.2, 1)` |
 | The plus becomes an X | Rotates 45° | 200ms | ease |
@@ -387,6 +388,7 @@ Motion is quick, quiet and functional. It shows where something came from and th
 **Rules:**
 
 - Every sheet, menu and modal animates in and out with the table above. Nothing that opens over the page just appears.
+- The one exception: suggestion lists that change as you type (autocomplete) appear and update instantly, so typing never feels slow.
 - Everything is turned off under the device's reduced-motion setting: things appear in their final state, and numbers show their final value.
 - Animate with transforms and opacity, plus CSS transitions. No animation library is needed.
 
