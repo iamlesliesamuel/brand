@@ -22,7 +22,7 @@ Every app gets a copy of the kit. This repo is the original. Change things here 
 
 **Moving an existing app to the brand:** paste `prompts/ADOPT-EXISTING-APP.md`. It copies the kit in, audits the app, and gives you a plan before changing anything.
 
-**After the brand changes:** paste `prompts/SYNC-AN-APP.md` into each app's Claude Code. It reads `CHANGELOG.md` and brings the app up to date.
+**After the brand changes:** paste `prompts/SYNC-AN-APP.md` into each app's Claude Code. It reads `CHANGELOG.md` and brings the app up to date. It's safe for products with their own brand (This is SXM) too: it checks which kind of app it's in, and for those it applies only the fingerprint, never Leslie's colors, fonts or logo.
 
 **Changing the brand itself:** edit here (with Claude or Claude Code), add a line to `CHANGELOG.md`, then sync the apps. The published brand guide page on claude.ai gets updated from this repo.
 

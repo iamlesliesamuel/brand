@@ -2,6 +2,12 @@
 
 Newest first. Each entry says what changed and what an app needs to do about it.
 
+## 2026-11-24 (fourth update): the sync prompt knows about own-brand products
+
+- **`prompts/SYNC-AN-APP.md`** now checks whether an app is on Leslie's brand or has its own brand. For own-brand products it applies only Part 5 (the fingerprint) and never copies Leslie's colors, fonts, logo or guide into the app. `docs/brand/BRAND-VERSION.md` records which kind an app is.
+- **This is SXM:** on its next sync, create `docs/brand/BRAND-VERSION.md` marked "own brand, fingerprint only."
+- **Speaker OS:** add "on Leslie's brand" to its `BRAND-VERSION.md`.
+
 ## 2026-11-24 (third update): a softer hexagon
 
 - **The hexagon has rounder corners**, matching the habit tracker's: a radius of 7.5% of the width, about two and a half times rounder than before. It now comes from one path in the new `tokens/hexagon.ts` (`HEX_PATH`, `HEX_VIEWBOX`), so every app draws exactly the same shape.
