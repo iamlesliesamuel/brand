@@ -2,6 +2,13 @@
 
 Newest first. Each entry says what changed and what an app needs to do about it.
 
+## 2026-11-24 (third update): a softer hexagon
+
+- **The hexagon has rounder corners**, matching the habit tracker's: a radius of 7.5% of the width, about two and a half times rounder than before. It now comes from one path in the new `tokens/hexagon.ts` (`HEX_PATH`, `HEX_VIEWBOX`), so every app draws exactly the same shape.
+- **The main action's plus is thinner and smaller**: about a third of the hexagon's width and about 3px at 56px (`HEX_PLUS_PATH`), instead of almost half and 3.5px.
+- **A hexagon holding a count in progress uses its color's tint**, with the number in that color, and turns solid when the set is complete.
+- **Apps (Speaker OS, This is SXM):** copy `tokens/hexagon.ts` in and draw every hexagon from it: the nav button, checkboxes, progress, markers, milestones. Replace the plus with `HEX_PLUS_PATH`. Products with their own brand use their own colors. Nothing else changes.
+
 ## 2026-11-24 (second update): a fuller fingerprint
 
 - **BRAND.md, Part 5** now adds to the fingerprint: hexagons wherever something counts (progress through a set shown as one hexagon per item, the hexagon checkbox, the milestone), the rewarding moments (count-up numbers, the hexagon pop, photos growing into the next page), the quality bar (inline confirmations, forms that never disable their button, short empty states, placeholder loading, reduced motion, keyboard and 44px tap targets), and where things live.

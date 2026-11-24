@@ -148,7 +148,9 @@ Hexagons are the one shape that fits together with no gaps, each one touching si
 - Never combined with or placed around the logo.
 - Not for ordinary buttons, cards or containers. Those stay rounded rectangles.
 
-**Shape:** pointy-top, width to height 8:9, rounded joins, a 2px stroke that stays 2px at every size. Numbers inside use DM Sans semibold.
+**Shape:** pointy-top, width to height 8:9, with softly rounded corners (a radius of 7.5% of the width). Every app draws it from the one path in `tokens/hexagon.ts`, never its own polygon, so fills, outlines and dashed outlines all share the same corners at every size. Outlines stay 2px on screen at every size. Numbers inside use DM Sans semibold.
+
+**Fill shows progress.** A hexagon that holds a count still in progress ("4 of 27") uses its color's tint with the number in that color; it turns solid when the set is complete. Solid fills are for done, so the screen gets fuller as the person goes, and big in-progress hexagons never become the heaviest thing on the page.
 
 **States:**
 
@@ -231,7 +233,7 @@ The same bar on phones and desktop. There's no sidebar.
 
 ### The main action: the gold hexagon
 
-- A `highlight` hexagon 56px wide, with a 3.5px `on-highlight` plus with round ends. It sits centered and rises 16px above the bar's middle.
+- A `highlight` hexagon 56px wide, with a thin `on-highlight` plus about a third of its width (`HEX_PLUS_PATH` in `tokens/hexagon.ts`, about 3px at this size, round ends). It sits centered and rises 16px above the bar's middle.
 - It's the app's one gold action and it's on every internal screen.
 - It opens **Quick add** (below). While Quick add is open, the plus turns 45° into an X, and the button is labeled "Close Quick add."
 
