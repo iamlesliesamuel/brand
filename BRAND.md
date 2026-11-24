@@ -436,6 +436,21 @@ Reports, feedback forms, booking pages, contact cards, invoices and anything tha
 
 ---
 
+# Part 5: Products with their own brand (the fingerprint)
+
+Some products Leslie builds carry another brand, such as This is SXM. They keep their own name, logo, colors, fonts and photography. What they share with Leslie's apps is a fingerprint: a few pieces of structure and motion that make them recognizably his work without mixing the two brands.
+
+**The fingerprint:**
+
+- **The hexagon main action.** The same 56px pointy-top hexagon in the middle of the bottom bar, the same plus, rotating into an X while its sheet is open. Its color is the product's own main action color, not Leslie's gold. The shape is the fingerprint; the color belongs to the product.
+- **The bottom bar.** The same floating bar, size, position, active pill, fade behind it, and collapse on scroll on phones, in the product's colors. The product may keep text labels under the icons when its users are visitors who need them.
+- **The sheet behind the hexagon.** The same Quick add sheet: tiles, handle, backdrop, motion.
+- **The profile photo** in the top right opens the profile menu. There's no profile tab in the bar.
+- **The motion vocabulary** from Part 2, including turning it all off under reduced motion.
+- **Hexagons where they hold a unit,** if the product has steps, checklists or progress, in the product's colors.
+
+**Not part of the fingerprint:** Leslie's logo or LS mark, his colors, DM Serif Display and DM Sans, his voice rules (the product speaks in its own voice), and "made by Leslie" credits.
+
 # Using it in code
 
 The files that go with this guide are in this repo:

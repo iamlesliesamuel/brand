@@ -2,6 +2,11 @@
 
 Newest first. Each entry says what changed and what an app needs to do about it.
 
+## 2026-11-24: the fingerprint for products with their own brand
+
+- **New in BRAND.md, Part 5:** products Leslie builds for another brand (This is SXM first) keep their own colors, fonts, logo and voice, and share a fingerprint: the hexagon main action in the product's own action color, the floating bottom bar and its motion, the Quick add sheet, the profile photo opening the profile menu, and the Part 2 motion vocabulary.
+- **Apps on Leslie's brand:** nothing to change.
+
 ## 2026-11-23 (second update): full-bleed app icons, two motion rules
 
 Found by the first Speaker OS sync.
