@@ -447,9 +447,18 @@ Some products Leslie builds carry another brand, such as This is SXM. They keep 
 - **The sheet behind the hexagon.** The same Quick add sheet: tiles, handle, backdrop, motion.
 - **The profile photo** in the top right opens the profile menu. There's no profile tab in the bar.
 - **The motion vocabulary** from Part 2, including turning it all off under reduced motion.
-- **Hexagons where they hold a unit,** if the product has steps, checklists or progress, in the product's colors.
+- **Hexagons wherever something counts,** in the product's colors. If the product tracks progress through a set of things (places explored, lessons done, days in a streak), show it as one hexagon per item, filling in as the person goes, rather than a percentage ring or bar. Checklists use the hexagon checkbox with its pop. Finishing the whole set earns the milestone hexagon. Same rule as always: every hexagon holds one real thing, never decoration.
+- **The rewarding moments.** Numbers that matter (points, counts) count up when they change. Checking something off pops the hexagon. Opening a photo card grows the photo into the next page. All from the Part 2 Motion table.
+- **The quality bar.** These make a product feel made by the same careful hand:
+  - Confirmations appear right where the action happened, never as pop-up toasts.
+  - Forms never disable their main button. Tapping it shows what's missing, under each field.
+  - Empty states are a line or two: what's missing and how it fills up.
+  - Loading shows placeholder blocks inside a header and bar that stay on screen.
+  - Everything turns off under the device's reduced-motion setting.
+  - Every control works by keyboard, with a visible focus ring, and tap targets are at least 44px.
+- **Where things live.** Tabs for the places used every day, the hexagon for adding things, the profile photo for things about you, and search for everything. Once someone learns this in one of Leslie's products, they know how to use all of them.
 
-**Not part of the fingerprint:** Leslie's logo or LS mark, his colors, DM Serif Display and DM Sans, his voice rules (the product speaks in its own voice), and "made by Leslie" credits.
+**Not part of the fingerprint:** Leslie's logo or LS mark, his colors, DM Serif Display and DM Sans, his photo treatment, and his voice rules (the product speaks in its own voice). No "built by Leslie" credit on screens; if a product wants one, it goes on an About page, with any partner's agreement.
 
 # Using it in code
 

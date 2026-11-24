@@ -2,6 +2,12 @@
 
 Newest first. Each entry says what changed and what an app needs to do about it.
 
+## 2026-11-24 (second update): a fuller fingerprint
+
+- **BRAND.md, Part 5** now adds to the fingerprint: hexagons wherever something counts (progress through a set shown as one hexagon per item, the hexagon checkbox, the milestone), the rewarding moments (count-up numbers, the hexagon pop, photos growing into the next page), the quality bar (inline confirmations, forms that never disable their button, short empty states, placeholder loading, reduced motion, keyboard and 44px tap targets), and where things live.
+- **Products with their own brand (This is SXM):** adopt these as a separate step after the navigation.
+- **Apps on Leslie's brand:** nothing to change; Part 2 already covers all of it.
+
 ## 2026-11-24: the fingerprint for products with their own brand
 
 - **New in BRAND.md, Part 5:** products Leslie builds for another brand (This is SXM first) keep their own colors, fonts, logo and voice, and share a fingerprint: the hexagon main action in the product's own action color, the floating bottom bar and its motion, the Quick add sheet, the profile photo opening the profile menu, and the Part 2 motion vocabulary.
